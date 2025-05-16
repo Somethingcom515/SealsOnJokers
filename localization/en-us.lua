@@ -135,6 +135,19 @@ return {
                     "All at the same time",
                 }
             },
+            j_soe_someinone = {
+                name = 'Some Jokers',
+                text={
+                    "Click this joker to choose a joker to replicate permanently!",
+                    "{C:inactive}(Expect crashes!){}",
+                }
+            },
+            j_soe_allinone = {
+                name = 'Almost LITERALLY EVERY Joker',
+                text={
+                    "ALL at the same time",
+                }
+            },
             j_joker_u = {
                 name="Joker",
                 text={
@@ -331,6 +344,12 @@ return {
                 text = {
                     'Add a {C:red}Red Seal{}',
                     'to the blind',
+                }
+            },
+            c_soe_allinone = {
+                name = 'ALL IN ONE???',
+                text = {
+                    "UNBELIEVEABLE"
                 }
             },
         },
