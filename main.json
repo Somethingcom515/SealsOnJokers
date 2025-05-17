@@ -11,7 +11,7 @@
 	"display_name": "Seals On Everything",
 	"version": "2.1.0",
 	"dependencies": [
-		"Steamodded (>=1.0.0~BETA-0509c-STEAMODDED)",
+		"Steamodded (>=1.0.0~BETA-0509b-STEAMODDED)",
 		"Lovely (>=0.7.1)", 
 		"Balatro (>=1.0.1o)"
 	]
