@@ -2720,7 +2720,7 @@ function SEALS.become_all_jokers_theoretically(context, card, usage, dt)
     -- Get the joker keys.
     for k, v in pairs(G.P_CENTER_POOLS.Joker) do
         -- or (v.mod.id == "paperback") or (v.mod.id == "jen" and v.key ~= "j_jen_gourmand" and v.rarity == "cry_exotic")
-        if (v.mod and ((v.mod.id == "ortalab" and v.key ~= "j_ortalab_grave_digger") or (v.mod.id == "Cryptid" and v.key ~= "j_cry_curse_sob" and (v.rarity == 3 or v.rarity == 4 or v.rarity == "cry_epic" or v.rarity == "cry_exotic") and v.key ~= "j_cry_error") or (v.mod.id == "Neato_Jokers") or (v.mod.id == "GSBFDI"))) then
+        if (v.mod and ((v.mod.id == "ortalab" and v.key ~= "j_ortalab_grave_digger") or (v.mod.id == "Cryptid" and v.key ~= "j_cry_curse_sob" and (v.rarity == 3 or v.rarity == 4 or v.rarity == "cry_epic" or v.rarity == "cry_exotic") and v.key ~= "j_cry_error") or (v.mod.id == "Neato_Jokers") or (v.mod.id == "GSBFDI") or (v.mod.id == "TOGAPack") or (v.mod.id == "GSPhanta"))) then
             table.insert(pooltocollect, v.key)
         end
     end
@@ -3031,6 +3031,7 @@ SMODS.Joker{
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = true,
+    demicoloncompat = true,
     update = function (self, card, dt)
         card:set_eternal(true)
         card.states.drag.is = false
