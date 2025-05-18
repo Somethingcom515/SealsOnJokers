@@ -1583,7 +1583,7 @@ function Card:load(cardTable, other_card)
 end
 
 local oldcalcseal = Card.calculate_seal
-function Card:calculate_seal(context, ischecking)
+function Card:calculate_seal(context)
     if self.debuff then return nil end
     if self.ability and self.ability.set == 'Joker' then
         if self.seal == 'Red' and self.extraseals == nil and context.retrigger_joker_check and not context.retrigger_joker and context.other_card == self then
@@ -1911,29 +1911,43 @@ function Card:calculate_seal(context, ischecking)
             }
         end
     end
-    --[[
-    if not ischecking and self.extraseals then
-        local flags
-        if context.retrigger_joker_check and not context.retrigger_joker and context.other_card == self then
-            flags = {
-                repetitions = 1,
-                card = self,
-            }
-        end
-        local eval = flags
-        if eval then
-            for k, v in pairs(self.extraseals) do
-                for i = 1, #self[v..'sealcount'] do
-                    eval.extra = flags
-                    eval = eval and type(eval) == 'table' and eval.extra or {}
-                end
-            end
-            return eval
-        end
-    end
-    ]]
     if not (self.ability.set == 'Default' or self.ability.set == 'Enhanced') then return nil end
     return oldcalcseal(self, context)
+end
+
+function SEALS.get_seal_count(card, seal)
+    local count = 0
+    print(count)
+    if card.seal == seal then
+        count = count + 1
+    end
+    for k, v in pairs(card.extraseals) do
+        if v == seal then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function SEALS.calculate_extraseals(self, context)
+    if self and self.extraseals then
+        local eval = self:calculate_seal(context)
+        local effects = {}
+        if eval then
+            local uniqueseals = {}
+            for k, v in pairs(self.extraseals) do
+                if not table.contains(uniqueseals, v) then
+                    table.insert(uniqueseals, v)
+                end
+            end
+            for k, v in pairs(uniqueseals) do
+                for i = 1, SEALS.get_seal_count(self, v) do
+                    table.insert(effects, eval)
+                end
+            end
+            return effects
+        end
+    end
 end
 
 function Card:set_sealbutbetter(var, _seal, silent, immediate)
@@ -1984,7 +1998,7 @@ function Card:set_seal(_seal, silent, immediate)
         else
             local random = '483959652912'
             while true do
-                local random = tostring(math.random(1,999999999999999999999999))
+                random = tostring(math.random(1,1e30))
                 if not self['extraseal'..random] then break end
             end
             self:set_sealbutbetter('extraseal'..random, _seal, silent, immediate)
@@ -1994,7 +2008,7 @@ function Card:set_seal(_seal, silent, immediate)
             print(self[string.lower(_seal)..'sealcount'])
         end
         return nil
-    end
+    end 
     if ((G.GAME.selected_sleeve == 'sleeve_soe_seal' and (G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal')) and self.seal and not self.extraseal) and _seal then
         self:set_sealbutbetter('extraseal', _seal, silent, immediate)
         self.extraseals = self.extraseals or {}
@@ -2683,6 +2697,7 @@ function SEALS.create_fake_joker(reference, key, reasonforcreation)
     }
     fake_card.role.major = reference.role.major or {}
     fake_card.ability.extra_value = reference.ability.extra_value or 0
+    fake_card.ability.cry_prob = reference.ability.cry_prob or 1
     for k, v in pairs(Card) do
         if type(v) == "function" then
             fake_card[k] = v
@@ -4311,7 +4326,7 @@ if cryptidyeohna then
         atlas = 'Think',
         pos = {x = 0, y = 0},
         soul_pos = {x = 1, y = 0},
-        config = {extra = {emult_mod = 0.2, idea_count = 18}},
+        config = {extra = {emult_mod = 0.2, idea_count = 19}},
         rarity = "cry_exotic",
         cost = 62,
         unlocked = true,
