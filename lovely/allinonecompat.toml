@@ -57,18 +57,6 @@ match_indent = true
 
 [[patches]]
 [patches.pattern]
-target = '''=[SMODS _ "src/utils.lua"]'''
-pattern = '''
-local calc = SMODS.calculate_individual_effect(effect, scored_card, key, effect[key], from_edition)
-'''
-position = "at"
-payload = '''
-local calc = SMODS.calculate_individual_effect(effect, scored_card, key, effect[key], from_edition, {effect.sealsfakekey, effect.sealscard})
-'''
-match_indent = true
-
-[[patches]]
-[patches.pattern]
 target = '''=[SMODS paperback "content/joker/legacy.lua"]'''
 pattern = '''if mult_gained > 0 then'''
 position = "at"

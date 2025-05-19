@@ -2978,9 +2978,9 @@ function card_eval_status_text(card, eval_type, amt, percent, dir, extra)
 end
 
 local oldsmodscalcindeff = SMODS.calculate_individual_effect
-function SMODS.calculate_individual_effect(effect, scored_card, key, amount, from_edition, importantinfo)
-    if ((scored_card.config and scored_card.config.center and scored_card.config.center.key == "j_soe_allinone") or scored_card.playing_card) and importantinfo and #importantinfo == 2 then
-        SEALS.change_sprite(importantinfo[1], importantinfo[2], true)
+SMODS.calculate_individual_effect = function(effect, scored_card, key, amount, from_edition)
+    if ((scored_card.config and scored_card.config.center and scored_card.config.center.key == "j_soe_allinone") or scored_card.playing_card) and effect.sealsfakekey and effect.sealscard then
+        SEALS.change_sprite(effect.sealsfakekey, effect.sealscard, true)
     end
     return oldsmodscalcindeff(effect, scored_card, key, amount, from_edition)
 end
