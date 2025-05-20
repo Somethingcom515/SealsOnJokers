@@ -4183,7 +4183,7 @@ SMODS.Joker{
         return {vars = {center.ability.extra.xmult}}
     end,
     calculate = function(self, card, context)
-        if (context.other_joker and (context.other_joker.seal or context.other_joker.ability.legal)) or (context.other_consumeable and context.other_consumeable.seal) then
+        if (context.other_joker and (context.other_joker.seal or context.other_joker.ability.legallyenhanced or context.other_joker.ability.legallysleeve)) or (context.other_consumeable and context.other_consumeable.seal) then
             return {
                 x_mult = card.ability.extra.xmult,
                 colour = G.C.MULT,
@@ -4370,6 +4370,7 @@ SMODS.Consumable{
     atlas = 'Placeholders',
     set = 'Spectral',
     pos = {x = 2, y = 2},
+    hidden = true,
     can_use = function (self, card) 
         local g = {}
         if (#SMODS.find_card("j_soe_infinityred") > 0 and #SMODS.find_card("j_soe_infinitygold") > 0 and #SMODS.find_card("j_soe_infinityblue") > 0 and #SMODS.find_card("j_soe_infinitypurple") > 0) and #G.jokers.highlighted == 4 then
@@ -4391,6 +4392,12 @@ SMODS.Consumable{
         end
         play_sound('explosion_release1')
         SMODS.add_card({set = 'Joker', area = G.jokers, key = 'j_soe_infinity'})
+    end,
+    in_pool = function(self)
+        if (#SMODS.find_card("j_soe_infinityred") > 0 and #SMODS.find_card("j_soe_infinitygold") > 0 and #SMODS.find_card("j_soe_infinityblue") > 0 and #SMODS.find_card("j_soe_infinitypurple") > 0) then
+            return true
+        end
+        return false
     end
 }
 
