@@ -4365,6 +4365,55 @@ SMODS.Back{
     pos = {x = 5, y = 2},
 }
 
+SEALS.toNormalString = function(a) --Convert stylized strings to normal strings.
+    local returnStr = a
+
+    local start_search = false
+    local search_result = ""
+    local every_result = {}
+
+    local start_var_search = false
+    local var_search_result = ""
+    local every_var_result = {}
+
+    for i = 1, #returnStr do
+        local character = string.sub(returnStr,i,i)
+        
+        if start_search then
+            search_result = search_result..character
+            if character == "}" then
+                every_result[#every_result+1] = search_result
+                start_search = false
+            end
+        end
+
+        if start_var_search then
+            var_search_result = var_search_result..character
+            if character == "#" then
+                every_var_result[#every_var_result+1] = var_search_result
+                start_var_search = false
+            end
+        end
+
+        if character == "{" and not start_search then start_search = true; search_result = "{" end
+        if character == "#" and not start_var_search then start_var_search = true; var_search_result = "#" end
+    end
+
+    if #every_result > 0 then
+        for _,search in ipairs(every_result) do
+            returnStr = string.gsub(returnStr, search, "", 1)
+        end
+    end
+
+    if #every_var_result > 0 then
+        for _,search in ipairs(every_var_result) do
+            returnStr = string.gsub(returnStr, search, "?", 1)
+        end
+    end
+
+    return returnStr
+end
+
 if CardSleeves then
     CardSleeves.Sleeve {
         key = "seal",
@@ -4391,8 +4440,17 @@ if CardSleeves then
             self.config = G.P_CENTERS[deckkey].config
                 tempstring = ""
             for k, v in pairs(G.localization.descriptions.Back[deckkey].text) do
-                tempstring = tempstring .. v
+                repeat
+                    if string.sub(v,1,1) == " " then v = string.sub(v,2,#v) end
+                until string.sub(v,1,1) ~= " "
+                repeat
+                    if string.sub(v,#v,#v) == " " then v = string.sub(v,1,#v-1) end
+                until string.sub(v,#v,#v) ~= " "
+                if v ~= "" then tempstring = tempstring .. SEALS.toNormalString(v) .. " " end
             end
+
+            if tempstring then tempstring = string.sub(tempstring,1,#tempstring-1) end
+
             end
             return {vars = {tempstring or "Nothing"}, key = key}
         end,
