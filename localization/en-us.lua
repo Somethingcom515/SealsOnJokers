@@ -62,13 +62,13 @@ return {
             j_soe_theinfinityseal = {
                 name = 'The Infinity Seal',
                 text={
-                    "{C:dark_edition,s:7}ALL CARDS{}",
+                    "{C:dark_edition}ALL CARDS{}",
                     "Do the following things:",
                     "Give {C:money}$#1#{}",
                     "Get retriggered {C:attention}#2#{} times",
                     "Give {C:attention}#3#{} {C:dark_edition}Negative{} Black holes",
                     "Giv {C:attention}#4#{} random {C:dark_edition}Negative{} consumables",
-                    "{V:1,s:11}LAG{}",
+                    "{V:1}LAG{}",
                 }
             },
             j_soe_extralife = {
