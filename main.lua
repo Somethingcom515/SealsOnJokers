@@ -2747,7 +2747,7 @@ end
 
 function SEALS.recursive_extra(table_return_table, index)
     if #table_return_table == 0 then return nil elseif #table_return_table == 1 then return table_return_table[1] end
-    if #table_return_table == 0 then return elseif #table_return_table == 1 then return table_return_table[1] end    if not index then index = 1 end
+    if not index then index = 1 end
     local ret = table_return_table[index]
     if index <= #table_return_table then
         local function getDeepest(tbl)
