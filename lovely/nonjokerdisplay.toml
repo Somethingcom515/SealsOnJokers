@@ -38,7 +38,7 @@ if G.hand and SEALS and SEALS.config.nonjokerdisplay then
 end
 if G.consumeables and SEALS and SEALS.config.nonjokerdisplay then
     for _, card in pairs(G.consumeables.cards) do
-        if card.ability.set == 'Planet' then
+        if card.ability.set == 'Planet' or card.ability.set == 'Tarot' then
             card:update_joker_display(false, true, "config_update")
             JokerDisplay.calculate_joker_modifiers(card)
         end
@@ -69,7 +69,7 @@ if self.playing_card and SEALS and SEALS.config.nonjokerdisplay then
     JokerDisplay.Definitions[self.config.center.key] = {
         text = {
             {text = "+", colour = G.C.CHIPS},
-            {ref_table = "card.base", ref_value = "nominal", colour = G.C.CHIPS},
+            {ref_table = "card.base", ref_value = "soe_chip_value", colour = G.C.CHIPS},
         }
     }
 end
@@ -87,7 +87,7 @@ payload = """
 JokerDisplay.Planet_Definitions = {}
 for k, v in pairs(G.P_CENTERS) do
     if v.set == 'Planet' and v.config.hand_type then
-        JokerDisplay.Planet_Definitions[k] = { -- Planets
+        JokerDisplay.Planet_Definitions[v.key] = { -- Planets
             condition_function = function(card)
                 return not card.debuff and card.ability.set == 'Planet' and G.GAME and G.GAME.used_vouchers.v_observatory and SEALS and SEALS.config.nonjokerdisplay
             end,
@@ -218,7 +218,7 @@ pattern = """if JokerDisplay.config.enabled and G.jokers and self.area == G.joke
 position = "at"
 payload = """if JokerDisplay.config.enabled and ((G.jokers and self.area == G.jokers) or (((G.hand and self.area == G.hand) or (G.consumeables and self.area == G.consumeables)) and SEALS and SEALS.config.nonjokerdisplay)) then"""
 overwrite = true
-match_indent = false
+match_indent = true
 
 [[patches]]
 [patches.pattern]
@@ -227,13 +227,12 @@ pattern = """elseif self.joker_display_values and G.real_dt > 0.05 and #G.jokers
 position = "at"
 payload = """elseif self.joker_display_values and G.real_dt > 0.05 and (#G.jokers.cards > 20 or ((#G.hand.cards > 20 or #G.consumeables.cards > 20) and SEALS and SEALS.config.nonjokerdisplay)) then"""
 overwrite = true
-match_indent = false
+match_indent = true
 
 [[patches]]
 [patches.pattern]
 target = '''=[SMODS JokerDisplay "src/display_functions.lua"]'''
-pattern = """
-    if self.ability and (self.ability.set == 'Joker' or self.ability.set == 'Colour') then"""
+pattern = """if self.ability and (self.ability.set == 'Joker' or self.ability.set == 'Colour' or self.ability.set == "Shape") then"""
 position = "at"
 payload = """if self.ability and (self.ability.set == 'Joker' or self.playing_card or self.area == G.consumeables) then"""
 overwrite = true
@@ -246,4 +245,13 @@ pattern = """if JokerDisplay.config.enabled and ((G.jokers and self.area == G.jo
 position = "at"
 payload = """if JokerDisplay.config.enabled and ((G.jokers and self.area == G.jokers) or ((G.hand and self.area == G.hand) and SEALS and SEALS.config.nonjokerdisplay) or (G.consumeables and self.area == G.consumeables)) then"""
 overwrite = true
-match_indent = false
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS JokerDisplay "src/utils.lua"]'''
+pattern = '''num = num:to_number()'''
+position = "at"
+payload = '''num = to_number(to_big(num))'''
+overwrite = true
+match_indent = true
