@@ -423,35 +423,6 @@ SMODS.Joker{
 }
 ]]
 
-local oldstartrun = Game.start_run
-function Game:start_run(args)
-    local g = oldstartrun(self, args)
-    if SEALS.find_mod("YGGDRASIL") and SkillTreePerks then
-        local jokerupgradessec = "soe_skill_tree_jokerupgrades"
-        if not check_if_section_exist(jokerupgradessec) then
-            SkillTreePerks[jokerupgradessec] = {
-                {
-                    {text = "JIM1", perk_id = "soe_jimbo_upgrade1", max_cap = 1, cost = 10},
-                    {text = "JIM2", perk_id = "soe_jimbo_upgrade2", max_cap = 1, requirement = {"soe_jimbo_upgrade1"}, cost = 30},
-                    {text = "JIM3", perk_id = "soe_jimbo_upgrade3", max_cap = 1, requirement = {"soe_jimbo_upgrade2"}, cost = 45},
-                    {text = "JIM4", perk_id = "soe_jimbo_upgrade4", max_cap = 1, requirement = {"soe_jimbo_upgrade3"}, cost = 60},
-                    {text = "JIM5", perk_id = "soe_jimbo_upgrade5", max_cap = 1, requirement = {"soe_jimbo_upgrade4"}, cost = 500},
-                },
-                {
-                    {text = "EGG1", perk_id = "soe_egg_upgrade1", max_cap = 1, cost = 30},
-                    {text = "EGG2", perk_id = "soe_egg_upgrade2", max_cap = 1, requirement = {"soe_egg_upgrade1"}, cost = 50},
-                    {text = "EGG3", perk_id = "soe_egg_upgrade3", max_cap = 1, requirement = {"soe_egg_upgrade2"}, cost = 60},
-                    {text = "EGG4", perk_id = "soe_egg_upgrade4", max_cap = 1, requirement = {"soe_egg_upgrade3"}, cost = 75},
-                    {text = "EGG5", perk_id = "soe_egg_upgrade5", max_cap = 1, requirement = {"soe_egg_upgrade4"}, cost = 90},
-                },
-            }
-            add_new_section(jokerupgradessec)
-        end
-    end
-    G.jokers.config.highlighted_limit = 1000
-    return g
-end
-
 if SEALS.find_mod("aikoyorisshenanigans") then
     SMODS.Joker{
         key = 'playingcardjokersactivator',
