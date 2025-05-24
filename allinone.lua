@@ -483,7 +483,8 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                         card:set_base(AKYRS.construct_case_base("akyrs_joker","akyrs_non_playing"), true)
                         table.insert(G.playing_cards, card)
                     end
-                    SMODS.add_card({key = "j_soe_playingcardjokersactivator", stickers = {"akyrs_sigma"}, edition = "e_negative"})
+                    local card2 = SMODS.add_card({key = "j_soe_playingcardjokersactivator", edition = "e_negative"})
+                    SMODS.Stickers["akyrs_sigma"]:apply(card2, true)
                     return true
                 end
             }))
