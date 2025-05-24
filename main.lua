@@ -1007,7 +1007,7 @@ SMODS.Consumable{
     pos = {x = 3, y = 1},
     unlocked = true,
     discovered = true,
-    config = {mod_conv = 'card', max_highlighted = 2, min_highlighted = 2},
+    config = {max_highlighted = 2, min_highlighted = 2},
     loc_txt = {
         name = 'Murder',
         text = {
@@ -1017,41 +1017,215 @@ SMODS.Consumable{
             "{C:inactive}(Drag to rearrange)",
         }
     },
-    loc_vars = function(self,info_queue,center)
-        return {vars = {center.ability.max_highlighted}}
+    loc_vars = function(self, info_queue, card)
+        return { vars = { card.ability.max_highlighted } }
     end,
+    can_use = function(self, card)
+        return G.jokers and #G.jokers.highlighted >= card.ability.min_highlighted and #G.jokers.highlighted <= card.ability.max_highlighted
+    end,
+    use = function(self, card, area, copier)
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.4,
+            func = function()
+                play_sound('tarot1')
+                card:juice_up(0.3, 0.5)
+                return true
+            end
+        }))
+        for i = 1, #G.jokers.highlighted do
+            local percent = 1.15 - (i - 0.999) / (#G.jokers.highlighted - 0.998) * 0.3
+            G.E_MANAGER:add_event(Event({
+                trigger = 'after',
+                delay = 0.15,
+                func = function()
+                    G.jokers.highlighted[i]:flip()
+                    play_sound('card1', percent)
+                    G.jokers.highlighted[i]:juice_up(0.3, 0.3)
+                    return true
+                end
+            }))
+        end
+        delay(0.2)
+        local rightmost = G.jokers.highlighted[1]
+        for i = 1, #G.jokers.highlighted do
+            if G.jokers.highlighted[i].T.x > rightmost.T.x then
+                rightmost = G.jokers.highlighted[i]
+            end
+        end
+        for i = 1, #G.jokers.highlighted do
+            G.E_MANAGER:add_event(Event({
+                trigger = 'after',
+                delay = 0.1,
+                func = function()
+                    if G.jokers.highlighted[i] ~= rightmost then
+                        copy_card(rightmost, G.jokers.highlighted[i])
+                    end
+                    return true
+                end
+            }))
+        end
+        for i = 1, #G.jokers.highlighted do
+            local percent = 0.85 + (i - 0.999) / (#G.jokers.highlighted - 0.998) * 0.3
+            G.E_MANAGER:add_event(Event({
+                trigger = 'after',
+                delay = 0.15,
+                func = function()
+                    G.jokers.highlighted[i]:flip()
+                    play_sound('tarot2', percent, 0.6)
+                    G.jokers.highlighted[i]:juice_up(0.3, 0.3)
+                    return true
+                end
+            }))
+        end
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.2,
+            func = function()
+                G.jokers:unhighlight_all()
+                return true
+            end
+        }))
+        delay(0.5)
+    end,
+}
+
+SMODS.Consumable{
+    key = 'decimal',
+    set = 'Spectral',
+    atlas = 'Tarots',
+    pos = {x = 2, y = 5},
+    unlocked = true,
+    discovered = true,
+    config = {},
+    loc_txt = {
+        name = 'Decimal',
+        text = {
+            "Add {C:dark_edition}Polychrome{} to a",
+            "random {C:attention}Playing card{} in hand, destroy",
+            "all other Playing cards in hand",
+        },
+    },
     can_use = function(self,card)
-        if #G.jokers.highlighted == 2 then
+        if (G.STATE == G.STATES.SELECTING_HAND or G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.SPECTRAL_PACK or G.STATE == G.STATES.PLANET_PACK or G.STATE == G.STATES.SMODS_BOOSTER_OPENED) and #G.hand.cards > 1 then
             return true
         end
         return false
     end,
-    use = function(self,card,area,copier)
-        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.4, func = function()
-            play_sound('tarot1')
-            card:juice_up(0.3, 0.5)
-            return true end }))
-        for i=1, #G.jokers.highlighted do
-            local percent = 1.15 - (i-0.999)/(#G.jokers.highlighted-0.998)*0.3
-            G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.15,func = function() G.jokers.highlighted[i]:flip();play_sound('card1', percent);G.jokers.highlighted[i]:juice_up(0.3, 0.3);return true end }))
-        end
-        delay(0.2)
-        local rightmost = G.jokers.highlighted[1]
-        for i=1, #G.jokers.highlighted do if G.jokers.highlighted[i].T.x > rightmost.T.x then rightmost = G.jokers.highlighted[i] end end
-        for i=1, #G.jokers.highlighted do
-            G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function()
-                if G.hand.highlighted[i] ~= rightmost then
-                    copy_card(rightmost, G.jokers.highlighted[i])
+    use = function(self, card, area, copier)
+        local editionless_cards = SMODS.Edition:get_edition_cards(G.hand, true)
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.4,
+            func = function()
+                local eligible_card = pseudorandom_element(editionless_cards, pseudoseed('decimal'))
+                eligible_card:set_edition({ polychrome = true })
+
+                local _first_dissolve = nil
+                for _, card in pairs(G.hand.cards) do
+                    if card ~= eligible_card and (not card.ability.eternal) then
+                        card:start_dissolve(nil, _first_dissolve)
+                        _first_dissolve = true
+                    end
                 end
-                return true end }))
-        end 
-        for i=1, #G.jokers.highlighted do
-            local percent = 0.85 + (i-0.999)/(#G.hand.highlighted-0.998)*0.3
-            G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.15,func = function() G.jokers.highlighted[i]:flip();play_sound('tarot2', percent, 0.6);G.jokers.highlighted[i]:juice_up(0.3, 0.3);return true end }))
-        end
-        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.2,func = function() G.jokers:unhighlight_all(); return true end }))
+
+                card:juice_up(0.3, 0.5)
+                return true
+            end
+        }))
+    end,
+}
+
+SMODS.Consumable{
+    key = 'ghost',
+    set = 'Spectral',
+    atlas = 'Tarots',
+    pos = {x = 5, y = 5},
+    unlocked = true,
+    discovered = true,
+    config = { max_highlighted = 1, extra = { cards = 2 } },
+    loc_vars = function(self, info_queue, card)
+        return { vars = { card.ability.extra.cards, card.ability.max_highlighted } }
+    end,
+    loc_txt = {
+        name = 'Ghost',
+        text = {
+            "Create {C:attention}#1#{} copies of",
+            "{C:attention}1{} selected Joker",
+        },
+    },
+    can_use = function(self, card)
+        return G.jokers and #G.jokers.highlighted <= card.ability.max_highlighted and #G.jokers.highlighted > 0
+    end,
+    use = function(self, card, area, copier)
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                local _first_dissolve = nil
+                local new_cards = {}
+                for i = 1, card.ability.extra.cards do
+                    local _card = copy_card(G.jokers.highlighted[1])
+                    _card:add_to_deck()
+                    G.jokers:emplace(_card)
+                    _card:start_materialize(nil, _first_dissolve)
+                    _first_dissolve = true
+                end
+                return true
+            end
+        }))
+    end,
+}
+
+SMODS.Consumable{
+    key = 'sacrifice',
+    set = 'Spectral',
+    atlas = 'Tarots',
+    pos = {x = 9, y = 4},
+    unlocked = true,
+    discovered = true,
+    config = { extra = { destroy = 5, dollars = 20 } },
+    loc_vars = function(self, info_queue, card)
+        return { vars = { card.ability.extra.destroy, card.ability.extra.dollars } }
+    end,
+    loc_txt = {
+        name = 'Sacrifice',
+        text = {
+            "Destroys {C:attention}#1#{} random",
+            "Jokers,",
+            "gain {C:money}$#2#",
+        },
+    },
+    use = function(self, card, area, copier)
+        local destroyed_cards = {}
+        local temp_hand = {}
+
+        for _, ccard in ipairs(G.jokers.cards) do if not ccard.ability.eternal then temp_hand[#temp_hand + 1] = ccard end end
+        pseudoshuffle(temp_hand, pseudoseed('sacrifice'))
+        for i = 1, card.ability.extra.destroy do destroyed_cards[#destroyed_cards + 1] = temp_hand[i] end
+
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.4,
+            func = function()
+                play_sound('tarot1')
+                card:juice_up(0.3, 0.5)
+                return true
+            end
+        }))
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.1,
+            func = function()
+                SMODS.destroy_cards(destroyed_cards)
+                return true
+            end
+        }))
         delay(0.5)
-    end
+        ease_dollars(card.ability.extra.dollars)
+        delay(0.3)
+    end,
+    can_use = function(self, card)
+        return G.hand and #G.hand.cards > 0
+    end,
 }
 
 G.FUNCS.play_highlighted_jokers = function(e)
@@ -1064,6 +1238,12 @@ G.FUNCS.play_highlighted_jokers = function(e)
         G.hand:add_to_highlighted(v)
     end
     G.FUNCS.play_cards_from_highlighted(e)
+end
+
+local oldsmodshasenhancement = SMODS.has_enhancement
+function SMODS.has_enhancement(card, key)
+    if card.ability.legallyenhanced == key then return true end
+    return oldsmodshasenhancement(card, key)
 end
 
 SMODS.Enhancement{
@@ -1321,8 +1501,8 @@ SMODS.Enhancement{
                     card.ability.no_rank = true
                     card.ability.no_suit = true
                 else
-                    local suit_prefix = G.hand.cards[i+1].base.suit
-                    local rank_suffix = G.hand.cards[i+1].base.value
+                    local suit_prefix = G.hand.cards[1].base.suit
+                    local rank_suffix = G.hand.cards[1].base.value
                     card.ability.no_rank = false
                     card.ability.no_suit = false
                     assert(SMODS.change_base(card, suit_prefix, rank_suffix))
@@ -1338,8 +1518,8 @@ SMODS.Enhancement{
                             card.ability.no_suit = true
                         else
                             if i < #G.hand.highlighted then
-                                local suit_prefix = G.hand.highlighted[i+1].base.suit
-                                local rank_suffix = G.hand.highlighted[i+1].base.value
+                                local suit_prefix = G.hand.highlighted[1].base.suit
+                                local rank_suffix = G.hand.highlighted[1].base.value
                                 card.ability.no_rank = false
                                 card.ability.no_suit = false
                                 assert(SMODS.change_base(card, suit_prefix, rank_suffix))
@@ -1583,7 +1763,7 @@ function Card:load(cardTable, other_card)
 end
 
 local oldcalcseal = Card.calculate_seal
-function Card:calculate_seal(context, ischecking)
+function Card:calculate_seal(context)
     if self.debuff then return nil end
     if self.ability and self.ability.set == 'Joker' then
         if self.seal == 'Red' and self.extraseals == nil and context.retrigger_joker_check and not context.retrigger_joker and context.other_card == self then
@@ -1762,7 +1942,7 @@ function Card:calculate_seal(context, ischecking)
                         func = function()
                             local card = copy_card(self, nil)
 ----                            if not SMODS.find_card('j_soe_sealjoker') and ((not G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal' and G.GAME.selected_sleeve == 'sleeve_soe_seal') and not self.extraseal) then
-                                card:set_seal()
+                                    card:set_seal()
 ----                            end
                             card:add_to_deck()
                             G.jokers:emplace(card)
@@ -1911,29 +2091,43 @@ function Card:calculate_seal(context, ischecking)
             }
         end
     end
-    --[[
-    if not ischecking and self.extraseals then
-        local flags
-        if context.retrigger_joker_check and not context.retrigger_joker and context.other_card == self then
-            flags = {
-                repetitions = 1,
-                card = self,
-            }
-        end
-        local eval = flags
-        if eval then
-            for k, v in pairs(self.extraseals) do
-                for i = 1, #self[v..'sealcount'] do
-                    eval.extra = flags
-                    eval = eval and type(eval) == 'table' and eval.extra or {}
-                end
-            end
-            return eval
-        end
-    end
-    ]]
     if not (self.ability.set == 'Default' or self.ability.set == 'Enhanced') then return nil end
     return oldcalcseal(self, context)
+end
+
+function SEALS.get_seal_count(card, seal)
+    local count = 0
+    print(count)
+    if card.seal == seal then
+        count = count + 1
+    end
+    for k, v in pairs(card.extraseals) do
+        if v == seal then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function SEALS.calculate_extraseals(self, context)
+    if self and self.extraseals then
+        local eval = self:calculate_seal(context)
+        local effects = {}
+        if eval then
+            local uniqueseals = {}
+            for k, v in pairs(self.extraseals) do
+                if not table.contains(uniqueseals, v) then
+                    table.insert(uniqueseals, v)
+                end
+            end
+            for k, v in pairs(uniqueseals) do
+                for i = 1, SEALS.get_seal_count(self, v) do
+                    table.insert(effects, eval)
+                end
+            end
+            return effects
+        end
+    end
 end
 
 function Card:set_sealbutbetter(var, _seal, silent, immediate)
@@ -1984,7 +2178,7 @@ function Card:set_seal(_seal, silent, immediate)
         else
             local random = '483959652912'
             while true do
-                local random = tostring(math.random(1,999999999999999999999999))
+                random = tostring(math.random(1,1e30))
                 if not self['extraseal'..random] then break end
             end
             self:set_sealbutbetter('extraseal'..random, _seal, silent, immediate)
@@ -1994,7 +2188,7 @@ function Card:set_seal(_seal, silent, immediate)
             print(self[string.lower(_seal)..'sealcount'])
         end
         return nil
-    end
+    end 
     if ((G.GAME.selected_sleeve == 'sleeve_soe_seal' and (G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal')) and self.seal and not self.extraseal) and _seal then
         self:set_sealbutbetter('extraseal', _seal, silent, immediate)
         self.extraseals = self.extraseals or {}
@@ -2153,15 +2347,6 @@ function SMODS.calculate_context(context, return_table)
 end
 
 SEALS.nojokercalculate = function(context)
-    --[[
-    if context.individual and context.other_card.ability.set == "Joker" and not context.end_of_round and context.cardarea == G.play then
-        local target = SMODS.add_card({key = context.other_card.config.center.key})
-        local eval = target:calculate_joker({joker_main = true, cardarea = G.jokers, full_hand = context.full_hand, scoring_hand = context.scoring_hand})
-        target.getting_sliced = true
-        target:start_dissolve()
-        SMODS.calculate_effect(eval, context.other_card)
-    end
-    ]]
     if context.individual and context.cardarea == G.play then
         if context.other_card.ability.legallysleeve == 'Plasma' then
             local tot = hand_chips + mult
@@ -2525,6 +2710,60 @@ function Card:click()
         end
         self:apply_to_run(nil, true)
     end
+    --[[
+    if self.config.center.key == 'j_soe_someinone' and self.area == G.jokers and not (G.someinonechoosecardarea and G.someinonechoosecardarea.cards and G.someinonechoosecardarea.cards[1]) then
+        G.SETTINGS.paused = true
+        G.someinonechoosecardarea = CardArea(
+            G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2,
+            G.ROOM.T.h,
+            5.3 * G.CARD_W,
+            1.03 * G.CARD_H,
+            { card_limit = 5, type = "title", highlight_limit = 0, collection = true }
+        )
+        local jokers = {
+            n = G.UIT.R,
+            config = { align = "cm", padding = 0, no_fill = true },
+            nodes = {
+                { n = G.UIT.O, config = { object = G.someinonechoosecardarea } },
+            },
+        }
+        local legaljokers = {}
+        for k, v in pairs(G.P_CENTER_POOLS.Joker)do
+            if v.mod and not (v.mod.id == "MoreFluff" or v.mod.id == "jen") and not (type(v.rarity) == "number" and v.rarity <= 4) then
+                table.insert(legaljokers, v)
+            end
+        end
+        for i = 1, 100 do
+            local chosen, index = pseudorandom_element(legaljokers, pseudoseed('joker'))
+            local card_ = SMODS.create_card({set = 'Joker', area = G.someinonechoosecardarea, no_edition = true, key = chosen.key})
+            G.someinonechoosecardarea:emplace(card_)
+            table.remove(legaljokers, index)
+            if #legaljokers <= 0 then break end
+        end
+        G.UIBOXGENERICOPTIONSSOMEINONE = create_UIBox_generic_options({
+            snap_back = true,
+            contents = {
+                {
+                    n = G.UIT.R,
+                    config = {align = "cm", minw = 2.5, padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05},
+                    nodes = {jokers},
+                },
+            },
+        })
+        G.FUNCS.overlay_menu({
+            definition = G.UIBOXGENERICOPTIONSSOMEINONE,
+        })
+    end
+    if self.area == G.someinonechoosecardarea and G.someinonechoosecardarea and G.someinonechoosecardarea.cards and G.someinonechoosecardarea.cards[1] then
+        local foundjokers = SMODS.find_card('j_soe_someinone')
+        if #foundjokers > 0 then
+            for k, v in pairs(foundjokers) do
+                table.insert(v.ability.extra.jokerkeys, self.config.center.key)
+            end
+        end
+        G.FUNCS.exit_overlay_menu()
+    end
+    ]]
     return g
 end
 
@@ -2599,24 +2838,6 @@ SMODS.Voucher{
     end
 }
 
-
-function SEALS.recursive_extra(table_return_table, index)
-    local ret = table_return_table[index]
-    if index <= #table_return_table then
-        local function getDeepest(tbl)
-            tbl = tbl or {}
-            while tbl.extra do
-                tbl = tbl.extra
-            end
-            return tbl
-        end
-        local prev = getDeepest(ret)
-        prev.extra = SEALS.recursive_extra(table_return_table, index + 1)
-    end
-    return ret
-end
-
-
 SMODS.Joker{
     name = 'StoneCardJoker',
     key = 'stonecardjoker',
@@ -2664,34 +2885,23 @@ SMODS.Joker{
     perishable_compat = true,
 }
 
-local oldstartrun = Game.start_run
-function Game:start_run(args)
-    local g = oldstartrun(self, args)
-    if SEALS.find_mod("YGGDRASIL") and SkillTreePerks then
-        local jokerupgradessec = "soe_skill_tree_jokerupgrades"
-        if not check_if_section_exist(jokerupgradessec) then
-            SkillTreePerks[jokerupgradessec] = {
-                {
-                    {text = "JIM1", perk_id = "soe_jimbo_upgrade1", max_cap = 1, cost = 10},
-                    {text = "JIM2", perk_id = "soe_jimbo_upgrade2", max_cap = 1, requirement = {"soe_jimbo_upgrade1"}, cost = 30},
-                    {text = "JIM3", perk_id = "soe_jimbo_upgrade3", max_cap = 1, requirement = {"soe_jimbo_upgrade2"}, cost = 45},
-                    {text = "JIM4", perk_id = "soe_jimbo_upgrade4", max_cap = 1, requirement = {"soe_jimbo_upgrade3"}, cost = 60},
-                    {text = "JIM5", perk_id = "soe_jimbo_upgrade5", max_cap = 1, requirement = {"soe_jimbo_upgrade4"}, cost = 500},
-                },
-                {
-                    {text = "EGG1", perk_id = "soe_egg_upgrade1", max_cap = 1, cost = 30},
-                    {text = "EGG2", perk_id = "soe_egg_upgrade2", max_cap = 1, requirement = {"soe_egg_upgrade1"}, cost = 50},
-                    {text = "EGG3", perk_id = "soe_egg_upgrade3", max_cap = 1, requirement = {"soe_egg_upgrade2"}, cost = 60},
-                    {text = "EGG4", perk_id = "soe_egg_upgrade4", max_cap = 1, requirement = {"soe_egg_upgrade3"}, cost = 75},
-                    {text = "EGG5", perk_id = "soe_egg_upgrade5", max_cap = 1, requirement = {"soe_egg_upgrade4"}, cost = 90},
-                },
-            }
-            add_new_section(jokerupgradessec)
-        end
-    end
-    G.jokers.config.highlighted_limit = 1000
-    return g
+function SEALS.deep_copy(obj, seen)
+	if type(obj) ~= "table" then
+		return obj
+	end
+	if seen and seen[obj] then
+		return seen[obj]
+	end
+	local s = seen or {}
+	local res = setmetatable({}, getmetatable(obj))
+	s[obj] = res
+	for k, v in pairs(obj) do
+		res[SEALS.deep_copy(k, s)] = SEALS.deep_copy(v, s)
+	end
+	return res
 end
+
+assert(SMODS.load_file('allinone.lua'))()
 
 if SEALS.find_mod("YGGDRASIL") then
     SMODS.Joker:take_ownership('j_joker',
@@ -3802,7 +4012,7 @@ SMODS.Joker{
     end,
     in_pool = function(self)
         return false
-        end
+    end
 }
 ]]
 
@@ -4345,7 +4555,6 @@ function CardArea:add_to_highlighted(card, silent)
 end
 
 local ancientupdate = EventManager.update
-
 function EventManager:update(dt, forced)
     if G.STATE == G.STATES.SELECTING_HAND then
         if G.GAME and G.GAME.blind and G.GAME.blind.seal and G.GAME.blind.debuff.akyrs_all_seals_perma_debuff and not G.GAME.blind.disabled then
@@ -4388,11 +4597,11 @@ if CardSleeves then
             key = self.key
             local tempstring
             if deckkey and G.P_CENTERS[deckkey] and type(G.P_CENTERS[deckkey]) == "table" then
-            self.config = G.P_CENTERS[deckkey].config
+                self.config = G.P_CENTERS[deckkey].config
                 tempstring = ""
-            for k, v in pairs(G.localization.descriptions.Back[deckkey].text) do
-                tempstring = tempstring .. v
-            end
+                for k, v in pairs(G.localization.descriptions.Back[deckkey].text) do
+                    tempstring = tempstring .. v
+                end
             end
             return {vars = {tempstring or "Nothing"}, key = key}
         end,
@@ -4540,10 +4749,30 @@ if SEALS.find_mod("JokerDisplay") then
             },
         }
     end
+    JokerDisplay.Definitions["c_temperance"] = { -- Temperance
+        text = {
+            { text = "$", colour = G.C.MONEY },
+            { ref_table = "card.joker_display_values", ref_value = "count", colour = G.C.MONEY },
+        },
+        calc_function = function(card)
+            local count = 0
+            if G.jokers then
+                for i = 1, #G.jokers.cards do
+                    if G.jokers.cards[i].ability.set == 'Joker' then
+                        count = count + G.jokers.cards[i].sell_cost
+                    end
+                end
+            end
+            card.joker_display_values.count = math.min(50, count)
+        end,
+    }
 end
 
 local oldupdate = Card.update
 function Card:update(dt)
+    if self.playing_card then
+        self.base.soe_chip_value = self:get_chip_bonus()
+    end
     if G.GAME and G.GAME.hands and G.GAME.hands["soe_nil"] and G.GAME.hands["soe_nil"].played and G.GAME.hands["soe_nil"].played > 0 then
         G.GAME.hands["soe_nil"].visible = false
         G.GAME.hands["soe_nil"].played = 0
@@ -4748,7 +4977,7 @@ SMODS.DrawStep{
             end
             if self.ability.legallyenhanced == "Steel" then
                 self.children.center:set_sprite_pos(G.P_CENTERS.m_steel.pos)
-        end
+            end
             if self.ability.legallyenhanced == "Glass" then
                 self.children.center:set_sprite_pos(G.P_CENTERS.m_glass.pos)
             end
