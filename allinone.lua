@@ -438,18 +438,20 @@ if SEALS.find_mod("aikoyorisshenanigans") then
         perishable_compat = true,
         config = {extra = {}},
         calculate = function (self, card, context)
-            if not context.blueprint and context.scoring_hand then
+            if not context.blueprint and context.scoring_hand and not context.retrigger_joker then
                 local effects_table = {}
                 for k, v in pairs(context.scoring_hand) do
-                    local effect, fake_card = SEALS.get_joker_return(v.config.center.key, context, card, not v.config.center.mod, v)
-                    if cryptidyeohna and context.individual and context.other_card == v and Cryptid.demicolonGetTriggerable(fake_card) then
-                        local results = Cryptid.forcetrigger(fake_card, context)
-                        if results and results.jokers then effects_table[#effects_table+1] = results.jokers end 
+                    if not v.debuff and v.ability.set == "Joker" then
+                        local effect, fake_card = SEALS.get_joker_return(v.config.center.key, context, card, not v.config.center.mod, v)
+                        if cryptidyeohna and context.individual and context.other_card == v and Cryptid.demicolonGetTriggerable(fake_card) then
+                            local results = Cryptid.forcetrigger(fake_card, context)
+                            if results and results.jokers then effects_table[#effects_table+1] = results.jokers end 
+                        end
+                        if effect and type(effect) == 'table' then
+                            effect.message_card = effect.message_card or effect.card or context.other_card or v
+                        end
+                        effects_table[#effects_table+1] = effect
                     end
-                    if effect and type(effect) == 'table' then
-                        effect.message_card = effect.message_card or effect.card or context.other_card or v
-                    end
-                    effects_table[#effects_table+1] = effect
                 end
                 return SEALS.recursive_extra(effects_table, 1)
             end
@@ -469,7 +471,6 @@ if SEALS.find_mod("aikoyorisshenanigans") then
             }
         },
         apply = function(self, back)
-            local cards = {}
             G.E_MANAGER:add_event(Event({
                 func = function()
                     if not G.playing_cards then return false end
@@ -477,13 +478,12 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                         v:start_dissolve()
                     end
                     for i=1, 52 do
-                        local card = SMODS.add_card({set = 'Joker', no_edition = true, area = G.deck})
-                        table.insert(cards, card)
+                        local card = SMODS.add_card({set = 'Joker', no_edition = true, area = G.deck, skip_materialize = true})
                         card:set_edition(nil, true, true)
                         card:set_base(AKYRS.construct_case_base("akyrs_joker","akyrs_non_playing"), true)
                         table.insert(G.playing_cards, card)
                     end
-                    SMODS.add_card({key = "j_soe_playingcardjokersactivator", stickers = {"eternal"}, edition = "e_negative"})
+                    SMODS.add_card({key = "j_soe_playingcardjokersactivator", stickers = {"akyrs_sigma"}, edition = "e_negative"})
                     return true
                 end
             }))
