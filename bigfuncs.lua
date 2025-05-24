@@ -27,6 +27,9 @@ function SEALS.get_vanilla_joker_return(key, context, fake_card)
     if self.ability.name == 'Caino' and not self.ability.caino_xmult then
         self.ability.caino_xmult = 1
     end
+    if self.ability.extra and type(self.ability.extra) == "table" and self.ability.extra.s_mult then
+        self.ability.effect = "Suit Mult"
+    end
     if self.ability.set == "Joker" then
         if self.ability.name == "Blueprint" then
             local other_joker = nil

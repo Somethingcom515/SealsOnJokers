@@ -2667,35 +2667,68 @@ SMODS.Voucher{
     end
 }
 
-function SEALS.create_fake_joker(reference, key, reasonforcreation)
+function SEALS.create_fake_joker(reference, key, reasonforcreation, juicecard)
+    local center = G.P_CENTERS[key]
     local ability
+    local cardformessages = juicecard or reference
     if reasonforcreation then
         if reasonforcreation == "calculate" or reasonforcreation == "use" then
             ability = reference.ability.savedvalues[key]
         elseif reasonforcreation == "add_to_deck" or reasonforcreation == "remove_from_deck" then
-            ability = G.P_CENTERS[key].config
+            ability = center.config
         end
     end
     if ability then
-        ability.set = G.P_CENTERS[key].set
-        ability.name = G.P_CENTERS[key].name
+        ability.set = center.set
+        ability.name = center.name
     end
     local fake_card = {
         ability = ability or reference.ability,
         config = {
-            center = G.P_CENTERS[key]
+            center = center,
         },
         sealsfakecard = true,
-        sealsmessagecard = reference,
+        sealsmessagecard = cardformessages,
         T = copy_table(reference.T),
-        VT = reference.VT,
+        VT = copy_table(reference.VT),
         children = reference.children,
-        states = reference.states,
-        role = reference.role,
+        states = copy_table(reference.states),
+        role = {
+            role_type = 'Major', --Major dictates movement, Minor is welded to some major
+            offset = {x = 0, y = 0}, --Offset from Minor to Major
+            major = nil,
+            draw_major = reference,
+            xy_bond = 'Strong',
+            wh_bond = 'Strong',
+            r_bond = 'Strong',
+            scale_bond = 'Strong'
+        },
+        alignment = {
+            type = 'a',
+            offset = {x = 0, y = 0},
+            prev_type = '',
+            prev_offset = {x = 0, y = 0},
+        },
         base_cost = reference.base_cost,
-        area = reference.area
+        area = reference.area,
+        CT = reference.CT,
+        ambient_tilt = 0.2,
+        tilt_var = {mx = 0, my = 0, dx = 0, dy = 0, amt = 0},
+        params = reference.params,
+        sell_cost = reference.sell_cost,
+        cost = reference.cost,
+        unique_val = reference.unique_val,
+        zoom = true,
+        discard_pos = {
+            r = 0,
+            x = 0,
+            y = 0,
+        },
+        facing = 'front',
+        sprite_facing = 'front',
+        click_timeout = 0.3,
+        original_T = copy_table(reference.T),
     }
-    fake_card.role.major = reference.role.major or {}
     fake_card.ability.extra_value = reference.ability.extra_value or 0
     fake_card.ability.cry_prob = reference.ability.cry_prob or 1
     for k, v in pairs(Card) do
@@ -2704,14 +2737,17 @@ function SEALS.create_fake_joker(reference, key, reasonforcreation)
         end
     end
     fake_card.juice_up = function(self, scale, rot_amount)
-        reference:juice_up(scale, rot_amount)
+        return cardformessages:juice_up(scale, rot_amount)
     end
     fake_card.remove = function(self)
+        return nil
     end
     return fake_card
 end
 
 function SEALS.recursive_extra(table_return_table, index)
+    if #table_return_table == 0 then return nil elseif #table_return_table == 1 then return table_return_table[1] end
+    if not index then index = 1 end
     local ret = table_return_table[index]
     if index <= #table_return_table then
         local function getDeepest(tbl)
@@ -2735,7 +2771,7 @@ function SEALS.become_all_jokers_theoretically(context, card, usage, dt)
     -- Get the joker keys.
     for k, v in pairs(G.P_CENTER_POOLS.Joker) do
         -- or (v.mod.id == "paperback") or (v.mod.id == "jen" and v.key ~= "j_jen_gourmand" and v.rarity == "cry_exotic")
-        if (v.mod and ((v.mod.id == "ortalab" and v.key ~= "j_ortalab_grave_digger") or (v.mod.id == "Cryptid" and v.key ~= "j_cry_curse_sob" and (v.rarity == 3 or v.rarity == 4 or v.rarity == "cry_epic" or v.rarity == "cry_exotic") and v.key ~= "j_cry_error") or (v.mod.id == "Neato_Jokers") or (v.mod.id == "GSBFDI") or (v.mod.id == "TOGAPack") or (v.mod.id == "GSPhanta") or (v.mod.id == "Ascensio"))) then
+        if (v.mod and ((v.mod.id == "ortalab" and v.key ~= "j_ortalab_grave_digger") or (v.mod.id == "Cryptid" and v.key ~= "j_cry_curse_sob" and (v.rarity == 3 or v.rarity == 4 or v.rarity == "cry_epic" or v.rarity == "cry_exotic") and v.key ~= "j_cry_error") or (v.mod.id == "Neato_Jokers") or (v.mod.id == "GSBFDI") or (v.mod.id == "TOGAPack") or (v.mod.id == "GSPhanta" and v.key ~= "j_phanta_shackles") or (v.mod.id == "Ascensio" and v.key ~= "j_asc_brainstorm"))) then
             table.insert(pooltocollect, v.key)
         end
     end
@@ -2943,18 +2979,20 @@ function SEALS.run_joker_update(key, dt, card, isvanilla)
     end
 end
 
-function SEALS.get_joker_return(key, context, card, isvanilla)
+function SEALS.get_joker_return(key, context, card, isvanilla, juicecard)
     local center = G.P_CENTERS[key]
     if center then
         card.ability.savedvalues = card.ability.savedvalues or {}
         card.ability.savedvalues[key] = card.ability.savedvalues[key] or copy_table(center.config)
-        local fake_card = SEALS.create_fake_joker(card, key, "calculate")
+        local fake_card = SEALS.create_fake_joker(card, key, "calculate", juicecard)
+        if card.config.center.key == "j_soe_allinone" then
         card.ability.extra.currentjoker = center
+        end
         if center.calculate and type(center.calculate) == "function" and not isvanilla then
-            return center:calculate(fake_card, context)
+            return center:calculate(fake_card, context), fake_card
         end
         if isvanilla then
-            return SEALS.get_vanilla_joker_return(key, context, fake_card)
+            return SEALS.get_vanilla_joker_return(key, context, fake_card), fake_card
         end
     end
 end
@@ -2966,6 +3004,7 @@ function card_eval_status_text(card, eval_type, amt, percent, dir, extra)
         local oldcard = card
         card = card.sealsmessagecard
         local v = oldcard.config.center.key
+        if card.config.center.key == "j_soe_allinone" then
         SEALS.change_sprite(v, card, true)
         G.E_MANAGER:add_event(Event({
             func = function()
@@ -2973,6 +3012,7 @@ function card_eval_status_text(card, eval_type, amt, percent, dir, extra)
                 return true
             end
         }))
+        end
     end
     return oldcardevalstatustext(card, eval_type, amt, percent, dir, extra)
 end
@@ -3030,6 +3070,57 @@ SMODS.Joker{
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = true,
+}
+
+function SEALS.deep_copy(obj, seen)
+	if type(obj) ~= "table" then
+		return obj
+	end
+	if seen and seen[obj] then
+		return seen[obj]
+	end
+	local s = seen or {}
+	local res = setmetatable({}, getmetatable(obj))
+	s[obj] = res
+	for k, v in pairs(obj) do
+		res[SEALS.deep_copy(k, s)] = SEALS.deep_copy(v, s)
+	end
+	return res
+end
+
+SMODS.Joker{
+    key = 'playingcardjokersactivator',
+    atlas = 'Placeholders',
+    pos = {x = 0, y = 0},
+    rarity = 1,
+    cost = 5,
+    unlocked = true,
+    unique = true,
+    discovered = true,
+    blueprint_compat = false,
+    eternal_compat = true,
+    perishable_compat = true,
+    config = {extra = {}},
+    calculate = function (self, card, context)
+        if not context.blueprint and context.scoring_hand then
+            local effects_table = {}
+            for k, v in pairs(context.scoring_hand) do
+                local effect, fake_card = SEALS.get_joker_return(v.config.center.key, context, card, not v.config.center.mod, v)
+                if cryptidyeohna and context.individual and context.other_card == v and Cryptid.demicolonGetTriggerable(fake_card) then
+                    local results = Cryptid.forcetrigger(fake_card, context)
+                    if results and results.jokers then effects_table[#effects_table+1] = results.jokers end 
+                end
+                if effect and type(effect) == 'table' then
+                    effect.message_card = effect.message_card or effect.card or context.other_card or v
+                end
+                effects_table[#effects_table+1] = effect
+            end
+            return SEALS.recursive_extra(effects_table, 1)
+        end
+    end,
+    in_pool = function(self)
+        return false
+    end
 }
 
 SMODS.Joker{
