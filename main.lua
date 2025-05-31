@@ -4799,7 +4799,7 @@ end
 
 local oldupdate = Card.update
 function Card:update(dt)
-    if self.playing_card then
+    if self.playing_card and SEALS and JokerDisplay and SEALS.config.nonjokerdisplay then
         self.base.soe_chip_value = self:get_chip_bonus()
     end
     if G.GAME and G.GAME.hands and G.GAME.hands["soe_nil"] and G.GAME.hands["soe_nil"].played and G.GAME.hands["soe_nil"].played > 0 then
