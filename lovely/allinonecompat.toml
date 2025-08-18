@@ -1,0 +1,65 @@
+[manifest]
+version = "1.0.0"
+dump_lua = true
+priority = 1
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS paperback "utilities/misc_functions.lua"]'''
+pattern = """if current_card ~= card and string.match(string.lower(current_card.ability.name), "%f[%w]stick%f[%W]") then"""
+position = "at"
+payload = """if current_card ~= card and string.match(string.lower(current_card.ability.name or ""), "%f[%w]stick%f[%W]") then"""
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "engine/sprite.lua"
+pattern = '''
+self.sprite = love.graphics.newQuad( 
+    self.sprite_pos.x*self.atlas.px,
+    self.sprite_pos.y*self.atlas.py,
+    self.scale.x,
+    self.scale.y, self.atlas.image:getDimensions())
+'''
+position = "before"
+payload = '''
+self.atlas = self.atlas or G.ASSET_ATLAS["Joker"]
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS paperback "content/joker/river.lua"]'''
+pattern = '''local lowest_chip_bonus = lowest_chip_card:get_chip_bonus()'''
+position = "at"
+payload = '''local lowest_chip_bonus = to_number(to_big(lowest_chip_card:get_chip_bonus()))'''
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.d_size > 0 then"
+position = "at"
+payload = "if self.ability.d_size and self.ability.d_size > 0 then"
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS Cryptid "items/exotic.lua"]'''
+pattern = '''if G.jokers.cards[i].ability.name ~= card.ability.name and G.jokers.cards[i].ability.set == "Joker" then'''
+position = "at"
+payload = '''if (G.jokers.cards[i].ability.name ~= card.ability.name and G.jokers.cards[i].config.center.key ~= "j_soe_allinone") and G.jokers.cards[i].ability.set == "Joker" then'''
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS paperback "content/joker/legacy.lua"]'''
+pattern = '''if mult_gained > 0 then'''
+position = "at"
+payload = '''if to_big(mult_gained) > to_big(0) then'''
+overwrite = true
+match_indent = true
