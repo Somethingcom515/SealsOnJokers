@@ -13,6 +13,14 @@ match_indent = true
 
 [[patches]]
 [patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = 'G.screenwipecard = Card(1, 1, G.CARD_W, G.CARD_H, pseudorandom_element(G.P_CARDS), G.P_CENTERS.c_base)'
+position = "after"
+payload = "G.screenwipecard:set_seal(pseudorandom_element(G.P_SEALS, 'seal').key, true, true)"
+match_indent = true
+
+[[patches]]
+[patches.pattern]
 target = "game.lua"
 pattern = 'Jimbo:say_stuff(5)'
 position = "after"
@@ -105,8 +113,8 @@ end
 '''
 position = "after"
 payload = '''
-if ret and _card.seal == "Red" and _card.redsealcount then
-    for i = 1, _card.redsealcount do
+if ret and SEALS.has_seal(_card, "Red") then
+    for ii = 1, SEALS.get_seal_count(_card, 'Red') do
         SMODS.calculate_effect({message = localize('k_again_ex'), card = _card}, _card)
         i = i+1
         add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = _card})
@@ -114,8 +122,26 @@ if ret and _card.seal == "Red" and _card.redsealcount then
         dollars = dollars + ret
     end
 end
-if ret and _card.seal == "Gold" then
-    SMODS.calculate_effect({dollars = 3, card = _card}, _card)
+if ret and SEALS.has_seal(_card, "Gold") then
+    for ii = 1, SEALS.get_seal_count(_card, 'Gold') do
+        SMODS.calculate_effect({dollars = 3, card = _card}, _card)
+    end
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS Cryptid "lib/overrides.lua"]'''
+pattern = '''
+if front and G.GAME.modifiers.cry_force_seal then
+    card:set_seal(G.GAME.modifiers.cry_force_seal)
+end
+'''
+position = "at"
+payload = '''
+if G.GAME.modifiers.cry_force_seal then
+    card:set_seal(G.GAME.modifiers.cry_force_seal)
 end
 '''
 match_indent = true

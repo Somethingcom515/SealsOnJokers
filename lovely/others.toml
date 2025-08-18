@@ -16,40 +16,79 @@ match_indent = true
 target = "functions/common_events.lua"
 pattern = 'for _, v in ipairs(info_queue) do'
 position = "before"
-payload = 'if _c.legallyplasmasleeve then info_queue[#info_queue+1] = {key = "legallyplasmasleeve", set = "Other"} end'
-match_indent = true
-
-[[patches]]
-[patches.pattern]
-target = "card.lua"
-pattern = "function Card:apply_to_run(center)"
-position = "at"
-payload = "function Card:apply_to_run(center, isblueprint)"
-overwrite = true
-match_indent = true
-
-[[patches]]
-[patches.pattern]
-target = "card.lua"
-pattern = '''
-local card_to_save = self and copy_card(self) or Card(0, 0, G.CARD_W, G.CARD_H, G.P_CARDS.empty, center)
-card_to_save.VT.x, card_to_save.VT.y = G.vouchers.T.x, G.vouchers.T.y
-card_to_save.ability.extra = self and self.ability.extra or card_to_save.ability.extra
-G.vouchers:emplace(card_to_save)
-'''
-position = "at"
 payload = '''
-local card_to_save
-if not isblueprint then
-    card_to_save = self and copy_card(self) or Card(0, 0, G.CARD_W, G.CARD_H, G.P_CARDS.empty, center)
-    card_to_save.VT.x, card_to_save.VT.y = G.vouchers.T.x, G.vouchers.T.y
-    card_to_save.ability.extra = self and self.ability.extra or card_to_save.ability.extra
-    G.vouchers:emplace(card_to_save)
-else
-    card_to_save = self
+if card and card.ability and next(SEALS.get_enhancements(card, true)) then
+    for i, v in ipairs(SEALS.get_enhancements(card, true)) do
+        info_queue[#info_queue+1] = G.P_CENTERS[v]
+    end
+end
+if card and card.edition and card.ability and card.ability.soe_editions then
+    local notfirst = {}
+    for i, v in ipairs(card.ability.soe_editions) do
+        if "e_"..v ~= card.edition.key or notfirst["e_"..v] then
+            info_queue[#info_queue+1] = G.P_CENTERS["e_" .. v]
+        end
+        notfirst["e_"..v] = true
+    end
+end
+if card and card.ability and next(SEALS.get_seals(card, true)) then
+    for i, v in ipairs(SEALS.get_seals(card, true)) do
+        info_queue[#info_queue+1] = G.P_SEALS[v]
+    end
 end
 '''
-overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''localize{type = 'other', key = 'playing_card', set = 'Other', nodes = full_UI_table.name, vars = {localize(specific_vars.value, 'ranks'), localize(specific_vars.suit, 'suits_plural'), colours = {specific_vars.colour}}}'''
+position = "at"
+payload = 'SEALS.get_card_name(card, full_UI_table.name, specific_vars)'
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = '''if obj and obj.set_badges and type(obj.set_badges) == 'function' then'''
+position = "before"
+payload = '''
+if card and card.ability and card.ability.soe_quantum_enhancements then
+    local notfirst = {}
+    for k, v in pairs(card.ability.soe_quantum_enhancements) do
+        if v ~= card.config.center.key or notfirst[v] then
+            badges[#badges + 1] = create_badge(G.localization.descriptions.Enhanced[v].name, G.C.SECONDARY_SET["Enhanced"])
+        end
+        notfirst[v] = true
+    end
+end
+if card and card.edition and card.ability and card.ability.soe_editions then
+    local notfirst = {}
+    for k, v in pairs(card.ability.soe_editions) do
+        if "e_"..v ~= card.edition.key or notfirst["e_"..v] then
+            badges[#badges + 1] = create_badge(G.localization.descriptions.Edition["e_"..v].name, G.P_CENTERS["e_"..v].badge_colour)
+        end
+        notfirst["e_"..v] = true
+    end
+end
+if card and card.ability and card.ability.soe_quantum_seals then
+    for k, v in pairs(card.ability.soe_quantum_seals) do
+        badges[#badges + 1] = create_badge(localize(string.lower(v).."_seal", "labels"), G.P_SEALS[v].badge_colour)
+    end
+end
+if card and card.ability and card.ability.soe_detached_seal then
+    badges = {}
+    SMODS.create_mod_badges({mod = SEALS}, badges)
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "local card_to_save = self and copy_card(self) or Card(0, 0, G.CARD_W, G.CARD_H, G.P_CARDS.empty, center)"
+position = "after"
+payload = "if G.soe_blueprinting then card_to_save.ability.soe_from_blueprint = G.ownerofblueprintvoucherchoosecardarea end"
 match_indent = true
 
 [[patches]]
@@ -169,4 +208,448 @@ if #yellowsealers > 0 then
 end
 '''
 overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''G.FUNCS.evaluate_play(e)'''
+position = "before"
+payload = '''
+G.GAME.SEALS_Scoring_Active = true
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''G.FUNCS.evaluate_play(e)'''
+position = "after"
+payload = '''
+G.GAME.SEALS_Scoring_Active = nil
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = 'functions/state_events.lua'
+match_indent = true
+pattern = '''if modded then update_hand_text({sound = 'chips2', modded = modded}, {chips = hand_chips, mult = mult}) end'''
+position = 'after'
+payload = '''
+if G.GAME.soe_joker_hands_available then
+    local jokerhands = SEALS.evaluate_joker_hands(G.jokers.cards)
+    if next(jokerhands) then
+        SMODS.calculate_context({soe_calcjokerhands = true, soe_joker_hands = jokerhands, scoring_name = text})
+    end
+end
+'''
+
+# G.FUNCS.evaluate_play()
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''local eval = eval_card(_card, {cardarea = G.jokers, full_hand = G.play.cards, scoring_hand = scoring_hand, scoring_name = text, poker_hands = poker_hands, edition = true, pre_joker = true})
+if eval.edition then effects[#effects+1] = eval end'''
+position = "at"
+payload = '''local pre_joker_context = {cardarea = G.jokers, full_hand = G.play.cards, scoring_hand = scoring_hand, scoring_name = text, poker_hands = poker_hands, edition = true, pre_joker = true}
+local eval = eval_card(_card, pre_joker_context)
+if eval.edition then effects[#effects+1] = eval end
+SEALS.calculate_quantum_editions(_card, effects, pre_joker_context)'''
+match_indent = true
+times = 1
+
+# G.FUNCS.evaluate_play()
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''local eval = eval_card(_card, {cardarea = G.jokers, full_hand = G.play.cards, scoring_hand = scoring_hand, scoring_name = text, poker_hands = poker_hands, edition = true, post_joker = true})
+if eval.edition then effects[#effects+1] = eval end'''
+position = "at"
+payload = '''local post_joker_context = {cardarea = G.jokers, full_hand = G.play.cards, scoring_hand = scoring_hand, scoring_name = text, poker_hands = poker_hands, edition = true, post_joker = true}
+local eval = eval_card(_card, post_joker_context)
+if eval.edition then effects[#effects+1] = eval end
+SEALS.calculate_quantum_editions(_card, effects, post_joker_context)'''
+match_indent = true
+times = 1
+
+# SMODS.calculate_context()
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/utils.lua"]'
+pattern = '''SMODS.calculate_quantum_enhancements(card, quantum_eval, context)'''
+position = "after"
+payload = '''
+SEALS.calculate_quantum_enhancements(card, quantum_eval, context)
+SEALS.calculate_quantum_editions(card, quantum_eval, context)
+SEALS.calculate_quantum_seals(card, quantum_eval, context)
+SEALS.calculate_quantum_stickers(card, quantum_eval, context)
+'''
+match_indent = true
+times = 1
+
+# SMODS.calculate_context()
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/utils.lua"]'
+pattern = '''SMODS.calculate_quantum_enhancements(card, effects, context)'''
+position = "after"
+payload = '''
+SEALS.calculate_quantum_enhancements(card, effects, context)
+SEALS.calculate_quantum_editions(card, effects, context)
+SEALS.calculate_quantum_seals(card, effects, context)
+SEALS.calculate_quantum_stickers(card, effects, context)
+'''
+match_indent = true
+times = 3
+
+# SMODS.calculate_context()
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/utils.lua"]'
+pattern = '''SMODS.calculate_quantum_enhancements(card, return_table, context)'''
+position = "after"
+payload = '''
+SEALS.calculate_quantum_enhancements(card, return_table, context)
+SEALS.calculate_quantum_editions(card, return_table, context)
+SEALS.calculate_quantum_seals(card, return_table, context)
+SEALS.calculate_quantum_stickers(card, return_table, context)
+'''
+match_indent = true
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS _ "src/utils.lua"]'''
+pattern = '''
+local eval, post = eval_card(_card, {retrigger_joker_check = true, other_card = card, other_context = context, other_ret = _ret})
+if next(eval) then
+    if next(post) then SMODS.trigger_effects({post}, _card) end
+    for key, value in pairs(eval) do
+        if not value.no_retrigger_juice then
+            value.retrigger_juice = card
+        end
+        SMODS.insert_repetitions(retriggers, value, _card, 'joker_retrigger')
+    end
+end
+'''
+position = "at"
+payload = '''
+local retrigger_context = {retrigger_joker_check = true, other_card = card, other_context = context, other_ret = _ret}
+local eval, post = eval_card(_card, retrigger_context)
+local effects = {eval}
+if next(eval) then
+    if next(post) then SMODS.trigger_effects({post}, _card) end
+    SEALS.calculate_quantum_editions(_card, effects, retrigger_context)
+    SEALS.calculate_quantum_seals(_card, effects, retrigger_context)
+    SEALS.calculate_quantum_stickers(_card, effects, retrigger_context)
+    for k, v in pairs(effects) do
+        for key, value in pairs(v) do
+            if not value.no_retrigger_juice then
+                value.retrigger_juice = card
+            end
+            SMODS.insert_repetitions(retriggers, value, _card, 'joker_retrigger')
+        end
+    end
+end
+'''
+match_indent = true
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS _ "src/utils.lua"]'''
+pattern = '''
+if context.other_joker then
+    for k, v in pairs(effects[1]) do
+        v.other_card = _card
+    end
+end
+'''
+position = "after"
+payload = '''
+SEALS.calculate_quantum_editions(_card, effects, context)
+SEALS.calculate_quantum_seals(_card, effects, context)
+SEALS.calculate_quantum_stickers(_card, effects, context)
+'''
+match_indent = true
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''local new_card = new_card or Card(other.T.x, other.T.y, G.CARD_W*(card_scale or 1), G.CARD_H*(card_scale or 1), G.P_CARDS.empty, G.P_CENTERS.c_base, {playing_card = playing_card, bypass_back = G.GAME.selected_back.pos})'''
+position = "after"
+payload = 'new_card.soe_from_copy = true'
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''
+if other.params then
+    new_card.params = other.params
+    new_card.params.playing_card = playing_card
+end
+new_card.debuff = other.debuff
+new_card.pinned = other.pinned
+'''
+position = "after"
+payload = 'new_card.soe_from_copy = nil'
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '=[SMODS pta_saka "content/jokers/rare/seal.lua"]'
+pattern = '''
+if context.repetition then
+    if context.other_card.seal then
+        return {
+            repetitions = 1,
+            message = localize("k_again_ex"),
+            card = card,
+        }
+    end
+end
+'''
+position = "at"
+payload = '''
+if context.repetition or context.retrigger_joker_check then
+    if context.other_card:get_seal() then
+        return {
+            repetitions = 1,
+            message = localize("k_again_ex"),
+            card = card,
+        }
+    end
+end
+'''
+match_indent = true
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = '=[lovely debugplus.core "debugplus/core.lua"]'
+pattern = '''
+if key == "e" then
+    if _card.playing_card then
+        for i, v in ipairs(getSeals()) do
+            if (_card:get_seal(true) or "None") == v then
+                local _next = i + 1
+                if _next > #seals then
+                    _next = 1
+                end
+                if _next == 1 then
+                    _card:set_seal(nil, true)
+                else
+                    _card:set_seal(seals[_next], true)
+                end
+                break
+            end
+        end
+    end
+end
+if key == "a" then
+    if _card.ability.set == 'Joker' then
+        _card.ability.eternal = not _card.ability.eternal
+    end
+end
+if key == "s" then
+    if _card.ability.set == 'Joker' then
+        _card.ability.perishable = not _card.ability.perishable
+        _card.ability.perish_tally = G.GAME.perishable_rounds
+    end
+end
+if key == "d" then
+    if _card.ability.set == 'Joker' then
+        _card.ability.rental = not _card.ability.rental
+        _card:set_cost()
+    end
+end
+'''
+position = "at"
+payload = '''
+if key == "e" then
+    for i, v in ipairs(getSeals()) do
+        if (_card:get_seal(true) or "None") == v then
+            local _next = i + 1
+            if _next > #seals then
+                _next = 1
+            end
+            if _next == 1 then
+                _card:set_seal(nil, true)
+            else
+                _card:set_seal(seals[_next], true)
+            end
+            break
+        end
+    end
+end
+if key == "a" then
+    _card.ability.eternal = not _card.ability.eternal
+end
+if key == "s" then
+    _card.ability.perishable = not _card.ability.perishable
+    _card.ability.perish_tally = G.GAME.perishable_rounds
+end
+if key == "d" then
+    _card.ability.rental = not _card.ability.rental
+    _card:set_cost()
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS _ "src/utils.lua"]'''
+pattern = '''effect.message = effect.message or (not effect.remove_default_message and localize('k_again_ex'))'''
+position = "after"
+payload = '''
+if G.GAME and G.GAME.SEALS_Scoring_Active and G.repetitioned_card and SEALS.has_seal(G.repetitioned_card, "soe_rustyseal") then
+    effect.extra = {
+        x_mult = (G.repetitioned_card.seal == "soe_rustyseal" and G.repetitioned_card.ability.seal.extra.xmult) or G.P_SEALS.soe_rustyseal.config.extra.xmult,
+        message_card = G.repetitioned_card
+    }
+end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Odd Todd' and"
+position = "at"
+payload = "if false and"
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Even Steven' and"
+position = "at"
+payload = "if false and"
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS aikoyorisshenanigans "./modules/content/alphabet_cards.lua"]'''
+pattern = '''
+for i=1, #G.hand.highlighted do
+    local percent = math.abs(0.85 + (i-0.999)/(#G.hand.highlighted-0.998)*0.3)
+    G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.15,func = function()
+        G.hand.highlighted[i].ability.aikoyori_letters_stickers = card.ability.extra.letter G.hand.highlighted[i]:flip();play_sound('tarot2', percent, 0.6);G.hand.highlighted[i]:juice_up(0.3, 0.3);return true end }))
+end
+'''
+position = "at"
+payload = '''
+for i = 1, #G.hand.highlighted do
+    local percent = math.abs(0.85 + (i - 0.999) / (#G.hand.highlighted - 0.998) * 0.3)
+    G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.15,
+        func = function()
+            if not G.hand.highlighted[i].ability.aikoyori_letters_stickers then
+                G.hand.highlighted[i].ability.aikoyori_letters_stickers = card.ability.extra.letter
+            elseif next(SMODS.find_card("j_soe_sealjoker2")) and not (G.hand.highlighted[i].ability.soe_quantum_letters and table.contains(G.hand.highlighted[i].ability.soe_quantum_letters, card.ability.extra.letter)) and G.hand.highlighted[i].ability.aikoyori_letters_stickers ~= card.ability.extra.letter then
+                G.hand.highlighted[i].ability.soe_quantum_letters = G.hand.highlighted[i].ability.soe_quantum_letters or {}
+                table.insert(G.hand.highlighted[i].ability.soe_quantum_letters, card.ability.extra.letter)
+            end
+            G.hand.highlighted[i]:flip(); play_sound('tarot2', percent, 0.6); G.hand.highlighted[i]:juice_up(0.3, 0.3); return true
+        end
+    }))
+end
+'''
+match_indent = true
+
+# This is for safety reasons
+[[patches]]
+[patches.pattern]
+target = '=[SMODS Maximus "items/jokers/vulture.lua"]'
+pattern = '''
+local oldSealCalc = Card.calculate_seal
+function Card:calculate_seal(context)
+'''
+position = "before"
+payload = '''
+--[[
+'''
+match_indent = true
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = '=[SMODS Maximus "items/jokers/vulture.lua"]'
+pattern = '''
+    return oldSealCalc(self, context)
+end
+'''
+position = "after"
+payload = '''
+]]
+'''
+match_indent = false
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "local t = {key = v, set = 'Other', config = {}}"
+position = "at"
+payload = '''
+local t = {key = v, set = 'Other', config = {}}
+if card and card.ability and card.ability.set == "Joker" and ({Red=true,Blue=true,Gold=true,Purple=true,cry_green=true,cry_azure=true})[seal.key] then
+    t.key = t.key..'_joker'
+end
+'''
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+G.E_MANAGER:add_event(Event({
+    trigger = 'after',
+    blockable = false,
+    delay =  1.5*explode_time,
+    func = (function() self:remove() return true end)
+}))
+'''
+position = "at"
+payload = '''
+if not G.oldbooster then
+    G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        blockable = false,
+        delay =  1.5*explode_time,
+        func = (function() self:remove() return true end)
+    }))
+else
+    if self.area then self.area:remove_card(self) end
+end
+'''
+overwrite = true
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''
+for i = 1, #G.GAME.tags do
+    local ret = G.GAME.tags[i]:apply_to_run({type = 'eval'})
+'''
+position = "before"
+payload = '''
+for _, v in ipairs(G.GAME.soe_extra_partner_cards or {}) do
+    local ret = v:calculate_partner_cash()
+    if ret then
+        i = i+1
+        add_round_eval_row({dollars = ret, bonus = true, name='partner'..i, pitch = pitch, card = v})
+        pitch = pitch + 0.06
+        dollars = dollars + ret
+    end
+end
+'''
 match_indent = true
