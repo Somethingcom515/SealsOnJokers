@@ -3666,13 +3666,11 @@ function SEALS.safe_change_base(card, suit, rank)
 end
 
 function SEALS.fix_broken_cards()
-    for i=1, 500 do
-        for i, v in ipairs(G.I.CARDAREA) do
-            if v and type(v) == 'table' and v.is and v:is(CardArea) and v.cards and type(v.cards) == 'table' then
-                for ii, vv in ipairs(v.cards) do
-                    if vv and vv:is(Card) and vv.REMOVED and vv.remove then
-                        vv:remove()
-                    end
+    for i, v in ipairs(G.I.CARDAREA) do
+        if v and type(v) == 'table' and v.is and v:is(CardArea) and v.cards and type(v.cards) == 'table' then
+            for ii, vv in ipairs(v.cards) do
+                if vv and vv:is(Card) and vv.REMOVED then
+                    v:remove_card(vv)
                 end
             end
         end
@@ -5592,7 +5590,7 @@ SMODS.Joker{
     cost = 55,
     unlocked = true,
     discovered = true,
-    blueprint_compat = false,
+    blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = false,
     calculate = function(self, card, context)
@@ -5644,7 +5642,7 @@ SMODS.Joker{
     cost = 55,
     unlocked = true,
     discovered = true,
-    blueprint_compat = false,
+    blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = false,
     calculate = function (self, card, context)
@@ -5679,13 +5677,12 @@ SMODS.Joker{
         card.children.floating_sprite:draw_shader('dissolve', nil, nil, nil, card.children.center, scale_mod, rotate_mod)
         card.children.floating_sprite:draw_shader('voucher', 0, nil, nil, card.children.center, scale_mod, rotate_mod, nil, 0.1 + 0.03*math.sin(1.8*G.TIMERS.REAL),nil, 0.6)
         card.children.floating_sprite:draw_shader('voucher', nil, nil, nil, card.children.center, scale_mod, rotate_mod)
-    end
-},
+    end},
     rarity = 'soe_infinity',
     cost = 55,
     unlocked = true,
     discovered = true,
-    blueprint_compat = false,
+    blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = false,
     config = {extra = {dollars = 3}},
@@ -5721,7 +5718,7 @@ SMODS.Joker{
     config = {extra = {odds = 8}},
     unlocked = true,
     discovered = true,
-    blueprint_compat = false,
+    blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = false,
     loc_vars = function (self, info_queue, card)
