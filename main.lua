@@ -1232,6 +1232,49 @@ SMODS.ObjectType{
     },
 }
 
+local oldcreatecard = create_card
+function create_card(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
+    local card = oldcreatecard(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
+    if key_append == 'sho' and ((G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal') or (G.GAME.selected_sleeve and G.GAME.selected_sleeve == 'sleeve_soe_seal')) then
+        card:set_seal(SMODS.poll_seal({key = 'sealdeck', guaranteed = true}), true, true)
+    end
+    local _, deception_poll
+    if G.GAME and G.GAME.used_vouchers.v_soe_deception then
+        _, deception_poll = pseudorandom_element({edition = G.GAME.used_vouchers.v_soe_legerdemain, enhancement = G.GAME.used_vouchers.v_soe_phantasm, seal = G.GAME.used_vouchers.v_soe_deception}, 'deception')
+    end
+    if G.GAME and G.GAME.used_vouchers.v_soe_legerdemain and ((_type ~= "Joker" and not card.playing_card) or deception_poll == 'edition') and not card.edition then
+        local edition = poll_edition('legerdemain'..(key_append or '')..G.GAME.round_resets.ante, nil, nil, (deception_poll == 'edition'))
+        if edition then
+            card:set_edition(edition)
+        end
+    end
+    if G.GAME and G.GAME.used_vouchers.v_soe_phantasm and not card.playing_card and not (card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements)) then
+        local options = get_current_pool('Enhanced')
+        for i, v in ipairs(options) do
+            if v ~= 'UNAVAILABLE' and G.P_CENTERS[v] and (G.P_CENTERS[v].replace_base_card or G.P_CENTERS[v].mod == SEALS or v == 'm_stone') then
+                table.remove(options, i)
+            end
+        end
+        local enhancement = SMODS.poll_enhancement({key = 'phantasm', guaranteed = (deception_poll == 'enhancement'), options = options})
+        if enhancement then
+            SEALS.set_joker_enhancement(card, G.P_CENTERS[enhancement])
+        end
+    end
+    if G.GAME and G.GAME.used_vouchers.v_soe_phantasm and card.playing_card and deception_poll == 'enhancement' then
+        local enhancement = SMODS.poll_enhancement({key = 'phantasm', guaranteed = true})
+        if enhancement then
+            card:set_ability(G.P_CENTERS[enhancement])
+        end
+    end
+    if G.GAME and G.GAME.used_vouchers.v_soe_deception and (not card.playing_card or deception_poll == 'seal') and not card.seal then
+        local seal = SMODS.poll_seal({key = 'deception', guaranteed = (deception_poll == 'seal')})
+        if seal then
+            card:set_seal(seal)
+        end
+    end
+    return card
+end
+
 local oldsmodscreatecard = SMODS.create_card
 function SMODS.create_card(t)
     if not t.area and t.set == "soe_Synonyms" then
@@ -1429,6 +1472,7 @@ end
 local ids_op_ref = ids_op
 function ids_op(card, op, b, c)
     local id = card:get_id()
+    if not id then return false end
     local other_results = false
     if ids_op_ref ~= nil then
         other_results = ids_op_ref(card, op, b, c)
@@ -2044,6 +2088,37 @@ SMODS.Voucher{
         calculate_reroll_cost(true)
     end
 }
+
+SMODS.Voucher{
+    key = 'legerdemain',
+    cost = 10,
+    atlas = 'VoucherSynonyms',
+    pos = {x = 4, y = 2},
+    unlocked = true,
+    discovered = true,
+}
+
+SMODS.Voucher{
+    key = 'phantasm',
+    cost = 10,
+    atlas = 'VoucherSynonyms',
+    pos = {x = 4, y = 3},
+    requires = {'v_soe_legerdemain'},
+    unlocked = true,
+    discovered = true,
+}
+
+if cryptidyeohna then
+    SMODS.Voucher{
+        key = 'deception',
+        cost = 10,
+        atlas = 'Vouchers',
+        pos = {x = 8, y = 0},
+        requires = {'v_soe_phantasm'},
+        unlocked = true,
+        discovered = true,
+    }
+end
 
 local oldcalculatererollcost = calculate_reroll_cost
 function calculate_reroll_cost(skip_increment)
@@ -6133,7 +6208,7 @@ if CardSleeves then
                 self.config = G.P_CENTERS[deckkey].config
                 local vars
                 if G.P_CENTERS[deckkey].loc_vars then
-                    vars = (G.P_CENTERS[deckkey]:loc_vars() or {}).vars
+                    vars = (G.P_CENTERS[deckkey]:loc_vars() or {}).vars or {}
                 end
                 tempstring = table.concat(localize({type = 'raw_descriptions', key = deckkey, set = 'Back', vars = vars}), ' ')
             end
@@ -6382,40 +6457,6 @@ function Card:update(dt)
             end
         end
     end
-    if (G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal') or (G.GAME.selected_sleeve and G.GAME.selected_sleeve == 'sleeve_soe_seal') then
-        local seals = {}
-        for k, v in pairs(G.P_SEALS) do
-            table.insert(seals, k)
-        end
-        if G.shop_jokers and G.shop_jokers.cards and G.shop_jokers.cards[1] then
-            for k, v in ipairs(G.shop_jokers.cards) do
-                if not v.seal then
-                    v:set_seal(pseudorandom_element(seals, pseudoseed('seal')), true, true)
-                end
-            end
-        end
-        if G.shop_booster and G.shop_booster.cards and G.shop_booster.cards[1] then
-            for k, v in ipairs(G.shop_booster.cards) do
-                if not v.seal then
-                    v:set_seal(pseudorandom_element(seals, pseudoseed('seal')), true, true)
-                end
-            end
-        end
-        if G.shop_vouchers and G.shop_vouchers.cards and G.shop_vouchers.cards[1] then
-            for k, v in ipairs(G.shop_vouchers.cards) do
-                if not v.seal then
-                    v:set_seal(pseudorandom_element(seals, pseudoseed('seal')), true, true)
-                end
-            end
-        end
-        if G.pack_cards and G.pack_cards.cards and G.pack_cards.cards[1] then
-            for k, v in ipairs(G.pack_cards.cards) do
-                if not v.seal then
-                    v:set_seal(pseudorandom_element(seals, pseudoseed('seal')), true, true)
-                end
-            end
-        end
-    end
     if (self.ability.set == 'Default' or self.ability.set == 'Enhanced') and not self.sticker_run then 
         self.sticker_run = get_card_win_sticker(self) or 'NONE'
     end
@@ -6430,12 +6471,25 @@ function Card:start_dissolve(dissolve_colours, silent, dissolve_time_fac, no_jui
     return oldcardstartdissolve(self, dissolve_colours, silent, dissolve_time_fac, no_juice)
 end
 
+local oldgfuncsusecard = G.FUNCS.use_card
+G.FUNCS.use_card = function(e, mute, nosave, amt)
+    local card = e.config.ref_table
+    if card.ability.set == 'Booster' and card.area == G.shop_booster then
+        card.soe_booster_bought_from_shop = true
+    end
+    return oldgfuncsusecard(e, mute, nosave, amt)
+end
+
 local oldcardareaemplace = CardArea.emplace
 function CardArea:emplace(card, location, stay_flipped)
     if card and type(card) == "table" then
         card.soe_lastcardarea = self
     end
-    return oldcardareaemplace(self, card, location, stay_flipped)
+    local g = oldcardareaemplace(self, card, location, stay_flipped)
+    if (self == G.shop_jokers or self == G.shop_vouchers or self == G.shop_booster or (self == G.pack_cards and SMODS.OPENED_BOOSTER and SMODS.OPENED_BOOSTER.soe_booster_bought_from_shop)) and ((G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_seal') or (G.GAME.selected_sleeve and G.GAME.selected_sleeve == 'sleeve_soe_seal')) then
+        card:set_seal(SMODS.poll_seal({key = 'sealdeck', guaranteed = true}), true, true)
+    end
+    return g
 end
 
 local oldcardsetcardarea = Card.set_card_area
@@ -6526,9 +6580,14 @@ SMODS.DrawStep{
     order = 100,
     func = function(self)
         if (self.ability.set ~= 'Joker' and (self.ability.set ~= 'Default' and self.ability.set ~= 'Enhanced')) and self.seal then
-            G.shared_seals[self.seal].role.draw_major = self
-            G.shared_seals[self.seal]:draw_shader('dissolve', nil, nil, nil, self.children.center)
-            if self.seal == 'Gold' then G.shared_seals[self.seal]:draw_shader('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center) end
+            local seal = G.P_SEALS[self.seal] or {}
+            if type(seal.draw) == 'function' then
+                seal:draw(self, layer)
+            elseif self.seal then
+                G.shared_seals[self.seal].role.draw_major = self
+                G.shared_seals[self.seal]:draw_shader('dissolve', nil, nil, nil, self.children.center)
+                if self.seal == 'Gold' then G.shared_seals[self.seal]:draw_shader('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center) end
+            end
         end
     end,
     conditions = {vortex = false, facing = 'front'},

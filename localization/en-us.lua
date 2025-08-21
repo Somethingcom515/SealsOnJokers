@@ -533,6 +533,33 @@ return {
                     "{C:attention}#1#%{} off",
                 }
             },
+            v_soe_legerdemain = {
+                name = "Legerdemain",
+                text = {
+                    "All cards can appear",
+                    "with an {C:dark_edition}Edition{}",
+                }
+            },
+            v_soe_phantasm = {
+                name = "Phantasm",
+                text = {
+                    "All cards can appear",
+                    "with an {C:attention}Enhancement{}",
+                }
+            },
+            v_soe_deception = {
+                name = "Deception",
+                text = {
+                    {
+                        "All cards can appear",
+                        "with a {C:attention}Seal{}",
+                    },
+                    {
+                        "All cards are guaranteed to appear with either an",
+                        "{C:dark_edition}Edition{}, {C:attention}Enhancement{} or {C:attention}Seal{}",
+                    }
+                }
+            },
         },
         Sleeve = {
             sleeve_soe_seal = {

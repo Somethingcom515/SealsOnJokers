@@ -22,6 +22,13 @@ if card and card.ability and next(SEALS.get_enhancements(card, true)) then
         info_queue[#info_queue+1] = G.P_CENTERS[v]
     end
 end
+if card and card.ability and card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements) then
+    for k, v in pairs(card.ability.soe_legalenhancements) do
+        for i=1, #v do
+            info_queue[#info_queue+1] = G.P_CENTERS[k]
+        end
+    end
+end
 if card and card.edition and card.ability and card.ability.soe_editions then
     local notfirst = {}
     for i, v in ipairs(card.ability.soe_editions) do
@@ -53,26 +60,29 @@ target = "functions/UI_definitions.lua"
 pattern = '''if obj and obj.set_badges and type(obj.set_badges) == 'function' then'''
 position = "before"
 payload = '''
-if card and card.ability and card.ability.soe_quantum_enhancements then
-    local notfirst = {}
-    for k, v in pairs(card.ability.soe_quantum_enhancements) do
-        if v ~= card.config.center.key or notfirst[v] then
-            badges[#badges + 1] = create_badge(G.localization.descriptions.Enhanced[v].name, G.C.SECONDARY_SET["Enhanced"])
+if card and card.ability and next(SEALS.get_enhancements(card, true)) then
+    for k, v in ipairs(SEALS.get_enhancements(card, true)) do
+        badges[#badges + 1] = create_badge(G.localization.descriptions.Enhanced[v].name, G.C.SECONDARY_SET["Enhanced"])
+    end
+end
+if card and card.ability and card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements) then
+    for k, v in pairs(card.ability.soe_legalenhancements) do
+        for i=1, #v do
+            badges[#badges + 1] = create_badge(G.localization.descriptions.Enhanced[k].name, G.C.SECONDARY_SET["Enhanced"])
         end
-        notfirst[v] = true
     end
 end
 if card and card.edition and card.ability and card.ability.soe_editions then
     local notfirst = {}
-    for k, v in pairs(card.ability.soe_editions) do
+    for k, v in ipairs(card.ability.soe_editions) do
         if "e_"..v ~= card.edition.key or notfirst["e_"..v] then
             badges[#badges + 1] = create_badge(G.localization.descriptions.Edition["e_"..v].name, G.P_CENTERS["e_"..v].badge_colour)
         end
         notfirst["e_"..v] = true
     end
 end
-if card and card.ability and card.ability.soe_quantum_seals then
-    for k, v in pairs(card.ability.soe_quantum_seals) do
+if card and card.ability and next(SEALS.get_seals(card, true)) then
+    for k, v in ipairs(SEALS.get_seals(card, true)) do
         badges[#badges + 1] = create_badge(localize(string.lower(v).."_seal", "labels"), G.P_SEALS[v].badge_colour)
     end
 end

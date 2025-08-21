@@ -2,7 +2,7 @@
 	"id": "SealsOnEverything",
 	"name": "Seals On Everything",
 	"author": ["Somethingcom515"],
-	"description": "Allows seals on Everything also comes with more seals",
+	"description": "Allows seals on everything and much more!",
 	"prefix": "soe",
 	"main_file": "main.lua",
 	"priority": 1234,
