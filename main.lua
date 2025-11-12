@@ -261,7 +261,7 @@ end
 
 local function tc(t, e)
     if t and type(t) == "table" then
-        for _, v in pairs(table) do
+        for _, v in pairs(t) do
             if v == e then
                 return true
             end
