@@ -4,7 +4,7 @@ dump_lua = true
 priority = 214748364
 
 # From All-in-Jest!
-# https://github.com/survovoaneend/All-In-Jest/wiki/Multi%E2%80%90rank-Implementation
+# They removed the link because apparently it was "unstable"
 [[patches]]
 [patches.pattern]
 target = "main.lua"
@@ -177,4 +177,4 @@ position = "after"
 payload = '''
 NFS.read = real_read
 '''
-match_indent = true 
+match_indent = true

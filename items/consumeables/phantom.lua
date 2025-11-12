@@ -3,6 +3,7 @@ SMODS.ConsumableType{
     primary_colour = HEX("882D33"),
     secondary_colour = HEX("882D33"),
     collection_rows = { 6, 6 },
+    shop_rate = 0,
     can_stack = true,
     can_divide = true,
     inject_card = function(self, center)
@@ -239,6 +240,94 @@ SMODS.Consumable{
             end
         end
         return G.STAGE == G.STAGES.RUN and #highlighted_cards == 1 and highlighted_cards[1].seal and ({Red=true,Blue=true,Gold=true,Purple=true})[highlighted_cards[1].seal]
+    end
+}
+
+SMODS.Consumable{
+    key = 'cannotfinditemwithkeyc_deja_vu',
+    set = 'soe_Phantom',
+    atlas = 'Confusion',
+    config = {extra = {max_highlighted = 2}},
+    pos = {x = 1, y = 0},
+    hidden = true,
+    soul_set = 'soe_Phantom',
+    soul_rate = 0.01,
+    soe_alternative = 'c_deja_vu',
+    unlocked = true,
+    discovered = true,
+    loc_vars = function (self, info_queue, card)
+        card.ability.extra.max_highlighted = math.max(2, card.ability.extra.max_highlighted)
+        return {vars = {math.max(2, card.ability.extra.max_highlighted)}}
+    end,
+    use = function(self, card, area, copier)
+        local merged_cards = {}
+        for i, v in ipairs(G.I.CARD) do
+            if v.highlighted and v ~= card then
+                if v.area ~= G.jokers then
+                    table.insert(merged_cards, v)
+                else
+                    table.insert(merged_cards, 1, v)
+                end
+                if #merged_cards >= math.max(2, card.ability.extra.max_highlighted) then
+                    break
+                end
+            end
+        end
+        local areacheck = true
+        for i=1, #merged_cards do
+            if not (merged_cards[1].area and merged_cards[i].area and merged_cards[1].area == merged_cards[i].area) then
+                areacheck = false
+                break
+            end
+        end
+        if areacheck then
+            local oldmerged_cards = merged_cards
+            merged_cards = {}
+            for i, v in ipairs(oldmerged_cards[1].area.cards) do
+                if table.contains(oldmerged_cards, v) then
+                    table.insert(merged_cards, v)
+                end
+            end
+        end
+        local final_card = merged_cards[1]
+        table.remove(merged_cards, 1)
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                play_sound('tarot1')
+                card:juice_up(0.3, 0.5)
+                return true
+            end
+        }))
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.1,
+            func = function()
+                SEALS.merge_cards(final_card, merged_cards)
+                return true
+            end
+        }))
+        delay(0.5)
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.2,
+            func = function()
+                for i, v in ipairs(merged_cards) do
+                    if v.area then
+                        v.area:unhighlight_all()
+                    end
+                end
+                return true
+            end
+        }))
+    end,
+    can_use = function (self, card)
+        local highlighted_cards = {}
+        for i, v in ipairs(G.I.CARD) do
+            if v and v.highlighted and v ~= card then
+                table.insert(highlighted_cards, v)
+            end
+        end
+        return G.STAGE == G.STAGES.RUN and #highlighted_cards >= 2 and #highlighted_cards <= math.max(2, card.ability.extra.max_highlighted)
     end
 }
 

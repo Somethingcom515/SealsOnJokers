@@ -9,9 +9,9 @@
 	"badge_colour": "E8463D",
 	"badge_text_colour": "FFFFFF",
 	"display_name": "Seals On Everything",
-	"version": "3.0.0",
+	"version": "3.1.0",
 	"dependencies": [
-		"Steamodded (>=1.0.0~BETA-0711a)",
+		"Steamodded (>=1.0.0~BETA-1016c)",
 		"Lovely (>=0.8.0)", 
 		"Balatro (>=1.0.1o)"
 	]

@@ -8,6 +8,15 @@ return {
                     "have seals",
                 }
             },
+            b_soe_merged = {
+                name = 'Merged Deck',
+                text = {
+                    'All cards in shop have a',
+                    '{C:green}#1# in #2#{} chance',
+                    'to show up {C:attention}merged{} with another',
+                    'card of the same set'
+                }
+            },
 			b_cry_sl_deck = {
 				name = "Seal Deck",
 				text = {
@@ -41,8 +50,8 @@ return {
             j_soe_sealjoker = {
                 name = 'Seal',
                 text={
-                    "Cards can have {s:3,C:soe_infinity}infinite{}",
-                    "seals"
+                    "Cards can have",
+                    "{E:soe_circle,C:soe_infinity}infinite{} seals"
                 },
             },
             j_soe_sealjoker2 = {
@@ -71,7 +80,7 @@ return {
                 name = 'Infinity Gold',
                 text={
                     "Cards played and held in hand along with jokers",
-                    "give {X:money,C:white}#1#*n{} when scored,",
+                    "give {X:money,C:white}#1#*n${} when scored,",
                     "where {C:attention}n{} is the amount of seals that card has",
                 }
             },
@@ -276,6 +285,13 @@ return {
                     "when this card is {C:attention}retriggered{}"
                 },
             },
+            soe_upgradedredseal_seal = {
+                name = 'Upgraded Red Seal',
+                text = {
+                    "Rescore this",
+                    "card {C:attention}1{} time",
+                },
+            },
             red_seal_joker = {
                 name="Red Seal",
                 text={
@@ -365,6 +381,21 @@ return {
                     "{C:attention}#2# {X:soe_synonym_gradient,C:white}Synonym{} cards to",
                     "be used immediately",
                 },
+            },
+            soe_epsilon = {
+                name = "Epsilon",
+                text = {
+                    "{X:dark_edition,C:white}CANNOT{} be destroyed or sold",
+                    "{C:inactive,s:0.4}except for the gallows bird{}",
+                    "{X:dark_edition,C:white}CANNOT{} be removed"
+                }
+            },
+            dd_akyrs_seals_on_everything_ability={
+                name="Seals On Everything Ability",
+                text={
+                    "All cards are considered as",
+                    "having {C:red}Red{} and {C:attention}Gold Seals{}"
+                }
             }
         },
         Planet={
@@ -575,12 +606,26 @@ return {
                     "Cards can have {C:attention}2{} Seals",
                 }
             },
+            sleeve_soe_merged = {
+                name = "Merged Sleeve",
+                text = {
+                    'All cards in shop have a',
+                    '{C:green}#1# in #2#{} chance',
+                    'to show up {C:attention}merged{} with another',
+                    'card of the same set'
+                }
+            },
+            sleeve_soe_merged_extra = {
+                name = "Merged Sleeve",
+                text = {
+                    'Merged cards ???'
+                }
+            },
             sleeve_soe_redseal = {
                 name = "Red Seal",
                 text = {
                     "Effects of this deck",
                     "happen twice",
-                    "{C:inactive}(#1#){}"
                 }
             },
             sleeve_soe_goldseal = {
@@ -595,7 +640,7 @@ return {
 			BakeryCharm_soe_sealcharm={
 				name = "Seal Charm",
                 text = {
-                    "Seal effects are doubled"
+                    "Seal effects are {C:attention}retriggered{}"
                 }
 			},
 		},
@@ -763,6 +808,13 @@ return {
                     'card'
                 }
             },
+            c_soe_cannotfinditemwithkeyc_deja_vu = {
+                name = "Cannot find item with key: 'c_deja_vu'",
+                text = {
+                    "Merge {C:attention}any{}",
+                    "{C:attention}#1#{} selected cards"
+                }
+            },
         },
         soe_DetachedSeal = {
             Red = {
@@ -836,8 +888,11 @@ return {
             soe_foilseal_seal = 'Foil Seal',
             soe_holoseal_seal = 'Holographic Seal',
             soe_rustyseal_seal = 'Rusty Seal',
+            soe_upgradedredseal_seal = 'Upgraded Red Seal',
 
             k_soe_infinity = "Infinity",
+
+            soe_epsilon = 'Epsilon'
         },
         poker_hand_descriptions = {
             soe_joker_central = {"5 Jokers"},

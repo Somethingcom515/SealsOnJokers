@@ -55,26 +55,7 @@ function SEALS.level_up_joker_hand(card, hand, instant, amount)
         update_hand_text({sound = 'button', volume = 0.7, pitch = 0.9, delay = 0}, {level=G.GAME.soe_joker_hands[hand].level})
         delay(1.3)
     end
-    update_hand_text({sound = 'button', volume = 0.7, pitch = 1.1, delay = 0}, vals_after_level or {mult = 0, chips = 0, handname = '', level = ''})
-end
-
-local oldsmodscalccontext = SMODS.calculate_context
-function SMODS.calculate_context(context, return_table)
-    if context.soe_calcjokerhands and G.GAME.soe_joker_hands_available then
-        for k, v in pairs(context.soe_joker_hands) do
-            update_hand_text({sound = 'button', volume = 0.7, pitch = 0.8, delay = 0.3}, {handname=v, level=G.GAME.soe_joker_hands[k].level})
-            delay(0.9)
-            update_hand_text({sound = 'chips1', delay = 0}, {chips = (hand_chips or 0) + G.GAME.soe_joker_hands[k].chips, StatusText = true})
-            hand_chips = (hand_chips or 0) + G.GAME.soe_joker_hands[k].chips
-            delay(0.9)
-            update_hand_text({sound = 'multhit1', delay = 0}, {mult = (mult or 0) + G.GAME.soe_joker_hands[k].mult, StatusText = true})
-            mult = (mult or 0) + G.GAME.soe_joker_hands[k].mult
-            delay(0.9)
-            update_hand_text({sound = 'button', volume = 0.7, pitch = 1.1, delay = 0}, vals_after_level or {handname = context.scoring_name, level = G.GAME.hands[context.scoring_name].level})
-            delay(1)
-        end
-    end
-    return oldsmodscalccontext(context, return_table)
+    update_hand_text({sound = 'button', volume = 0.7, pitch = 1.1, delay = 0}, {mult = 0, chips = 0, handname = '', level = ''})
 end
 
 G.FUNCS.can_calc_joker_hands = function(e)
@@ -165,7 +146,7 @@ SMODS.Consumable{
 				colours = {
 					(
 						to_big(G.GAME.soe_joker_hands["soe_simple_jimbo"].level) == to_big(1) and G.C.UI.TEXT_DARK
-						or G.C.HAND_LEVELS[to_big(math.min(7, G.GAME.soe_joker_hands["soe_simple_jimbo"].level)):to_number()]
+						or G.C.HAND_LEVELS[to_number(to_big(math.min(7, G.GAME.soe_joker_hands["soe_simple_jimbo"].level)))]
 					),
 				},
 			},

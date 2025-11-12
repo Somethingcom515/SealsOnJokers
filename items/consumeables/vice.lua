@@ -97,7 +97,7 @@ SMODS.Consumable {
                         local _card = SMODS.add_card({set = 'soe_Synonyms'})
                         card.ability.extra.key = _card.config.center.soe_alternative
                     elseif i == 2 then
-                        SMODS.add_card({key = card.ability.extra.key})
+                        SMODS.add_card({key = card.ability.extra.key})  
                     end
                     card:juice_up(0.3, 0.5)
                     return true
@@ -150,7 +150,7 @@ SMODS.Consumable {
                 trigger = 'after',
                 delay = 0.1,
                 func = function()
-                    SEALS.modify_joker_values(G.jokers.highlighted[i], {["+"] = card.ability.extra.jokeradd}, {x_mult = 1, x_chips = 1, h_size = 0, extra_value = true, cry_prob = true, d_size = 0})
+                    SEALS.modify_joker_values(G.jokers.highlighted[i], {["+"] = card.ability.extra.jokeradd}, {x_mult = 1, x_chips = 1, h_size = 0, extra_value = true, cry_prob = true, d_size = 0, card_limit = true, extra_slots_used = true})
                     return true
                 end
             }))
@@ -181,7 +181,7 @@ SMODS.Consumable {
     can_use = function(self, card)
         if G.jokers and #G.jokers.highlighted > 0 and #G.jokers.highlighted <= card.ability.max_highlighted then
             for k, v in pairs(G.jokers.highlighted) do
-                if v.config.center.immutable then
+                if v.config.center.immutable or v.ability.set ~= "Joker" then
                     return false
                 end
             end
@@ -216,7 +216,9 @@ SMODS.Consumable {
             delay = 0.2,
             func = function()
                 for k, v in pairs(G.jokers.highlighted) do
+                    v.destroyed_by_gallowsbird = true
                     v:soe_no_touching2()
+                    SEALS.event(function() v.destroyed_by_gallowsbird = nil return true end)
                 end
                 return true
             end

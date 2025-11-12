@@ -3,6 +3,7 @@ if SEALS.find_mod("Cryptid") then
     cryptidyeohna = true
 end
 
+--[[
 function SEALS.create_fake_card(reference, key, reasonforcreation, juicecard, isseal, isconsumeable, dontsave)
     local center = G.P_CENTERS[key]
     local ability
@@ -85,34 +86,7 @@ function SEALS.create_fake_card(reference, key, reasonforcreation, juicecard, is
     end
     return fake_card
 end
-
-function SEALS.recursive_extra(table_return_table, index)
-    if #table_return_table == 0 then return nil elseif #table_return_table == 1 then return table_return_table[1] end
-    if not index then index = 1 end
-    local ret = table_return_table[index]
-    if index <= #table_return_table then
-        local function getDeepest(tbl)
-            tbl = tbl or {}
-            while tbl.extra do
-                tbl = tbl.extra
-            end
-            return tbl
-        end
-        local prev = getDeepest(ret)
-        prev.extra = SEALS.recursive_extra(table_return_table, index + 1)
-    end
-    return ret
-end
-
-function SEALS.recursive_extra_for_non_jokers(table_return_table, index)
-    if #table_return_table == 0 then return nil elseif #table_return_table == 1 then return table_return_table[1] end
-    if not index then index = 1 end
-    local ret = table_return_table[index]
-    if index <= #table_return_table then
-        ret.extra = SEALS.recursive_extra_for_non_jokers(table_return_table, index + 1)
-    end
-    return ret
-end
+]]
 
 function SEALS.get_allinone_jokers()
     local pooltocollect = {}
@@ -133,6 +107,9 @@ function SEALS.get_allinone_jokers()
     for k, v in pairs(G.P_CENTERS) do
         if v.set == "Joker" then
             if rarity_whitelist[v.rarity] then
+                table.insert(pooltocollect, v.key)
+            end
+            if not v.mod or mod_whitelist[v.mod.id] then
                 table.insert(pooltocollect, v.key)
             end
         end
@@ -194,14 +171,14 @@ if cryptidyeohna then
     local oldadvancedfindjoker = Cryptid.advanced_find_joker
     function Cryptid.advanced_find_joker(name, rarity, edition, ability, non_debuff, area)
         local jokers = oldadvancedfindjoker(name, rarity, edition, ability, non_debuff, area)
-        if next(SMODS.find_card('j_soe_allinone')) then
+        if SMODS.find_card('j_soe_allinone')[1] then
             if name or rarity then
                 for k, v in pairs(SMODS.find_card('j_soe_allinone')) do
                     table.insert(jokers, v)
                 end
             end
         end
-        if next(SMODS.find_card('j_soe_newinfinifusion')) then
+        if SMODS.find_card('j_soe_newinfinifusion')[1] then
             if name or rarity then
                 for k, v in pairs(SMODS.find_card('j_soe_newinfinifusion')) do
                     for k, v in pairs(v.ability.extra.currentjokers) do
@@ -330,7 +307,7 @@ function SEALS.get_some_jokers_returns_combined(context, card, list)
             return a_sort < b_sort
         end)
     end
-    return SEALS.recursive_extra(effects_table, 1)
+    return SMODS.merge_effects(effects_table)
 end
 
 function SEALS.run_joker_add_to_deck(key, from_debuff, card, isvanilla)
@@ -453,7 +430,7 @@ G.FUNCS.soe_reroll_card = function(e)
     ease_dollars(-card.config.center.reroll_cost)
     play_sound('other1')
     local jokers = {}
-    for k, v in pairs(G.P_CENTER_POOLS.Joker) do
+    for _, v in ipairs(G.P_CENTER_POOLS.Joker) do
         if v.key ~= card.config.center.key then
             table.insert(jokers, v.key)
         end
@@ -525,7 +502,7 @@ SMODS.Joker{
         return {vars = {SEALS.safe_get(G.localization.descriptions, "Joker", card.ability.extra.currentjoker or "ddfjvgbjbfjvbnfbcmvd", "name") or "Nothing"}}
     end,
     calculate = function(self, card, context)
-        if context.end_of_round and context.main_eval and context.game_over == false then
+        if context.end_of_round and context.main_eval and not context.game_over then
             SMODS.calculate_effect({message = localize('k_reset')}, card)
             local jokers = {}
             for k, v in pairs(G.P_CENTER_POOLS.Joker) do
@@ -702,7 +679,6 @@ SMODS.Joker{
     atlas = 'Placeholders',
     pos = {x = 0, y = 0},
     soul_pos = {x = 1000, y = 1000, extra = {x = 1000, y = 1000}},
-    config = {extra = {}},
     rarity = 4,
     cost = 1000,
     unlocked = true,
@@ -766,7 +742,7 @@ SMODS.Seal{
             if b_sort == -1 then return false end
             return a_sort < b_sort
         end)
-        return SEALS.recursive_extra_for_non_jokers(effects_table, 1)
+        return SMODS.merge_effects(effects_table)
     end,
     get_p_dollars = function (self, card)
         local dollars = 0
@@ -804,7 +780,7 @@ SMODS.Enhancement{
             if b_sort == -1 then return false end
             return a_sort < b_sort
         end)
-        return SEALS.recursive_extra(effects_table, 1)
+        return SMODS.merge_effects(effects_table)
     end
 }
 
@@ -877,7 +853,7 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                         effects_table[#effects_table+1] = effect
                     end
                 end
-                return SEALS.recursive_extra(effects_table, 1)
+                return SMODS.merge_effects(effects_table)
             end
         end,
         in_pool = function(self)
@@ -908,7 +884,7 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                         table.insert(G.playing_cards, card)
                     end
                     local card2 = SMODS.add_card({key = "j_soe_playingcardjokersactivator", edition = "e_negative"})
-                    SMODS.Stickers["akyrs_sigma"]:apply(card2, true)
+                    SMODS.Stickers["soe_epsilon"]:apply(card2, true)
                     return true
                 end
             }))
