@@ -155,9 +155,9 @@ if not replaced_loader then
         if patched_cache[path] then
             return patched_cache[path]
         end
-        local content = real_read(path)
+        local content, err = real_read(path)
         if not content then
-            return content
+            return content, err
         end
         local fixed = patch_text(content)
         patched_cache[path] = fixed
