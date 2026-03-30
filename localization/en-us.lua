@@ -991,7 +991,7 @@ return {
                 text = {
                     'Increases all values of',
                     'up to {C:attention}#1#{} selected',
-                    '#3# by {C:attention}1{}',
+                    '#2# by {C:attention}1{}',
                     --'{C:inactive}(May cause issues){}'
                 },
             },

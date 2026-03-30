@@ -134,6 +134,7 @@ function SEALS.calculate_quantum_editions(card, effects, context)
 end
 
 function SEALS.recalc_quantum_editions(card, from_get)
+    if not G.deck then return end
     local old_editions = G.soe_old_editions[card] or {}
     local new_editions = from_get or SEALS.get_quantum_editions(card)
     local old, new, removed, added = {}, {}, {}, {}

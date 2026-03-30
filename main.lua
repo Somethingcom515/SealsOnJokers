@@ -282,6 +282,8 @@ function SEALS.find_mod(id)
     return mod and mod.can_load
 end
 
+local has_cryptid = SEALS.find_mod('Cryptid')
+
 local function tc(t, e)
     if e == nil then return false end
     if t and type(t) == 'table' then
@@ -535,7 +537,7 @@ SMODS.Consumable{
     end
 }
 
-if Cryptid then
+if has_cryptid then
     SMODS.Consumable{
         key = 'typhoonq',
         set = 'Spectral',
@@ -1372,7 +1374,7 @@ function Card:set_ability(center, initial, delay_sprites)
         self.base = self.base.soe_old_base
     end
     local g = oldcardsetability(self, center, initial, delay_sprites)
-    if Cryptid then
+    if has_cryptid then
         if G.GAME and G.GAME.modifiers.cry_force_seal then
             self:set_seal(G.GAME.modifiers.cry_force_seal, true, true)
         end
@@ -1629,7 +1631,7 @@ function SEALS.get_ranks(card, extra_only)
             if SMODS.Ranks[v].id == id then ranks[v] = true; break end
         end
     end
-    if Cryptid and find_joker('cry-Maximized')[1] and SEALS.face_check(card, true) then
+    if has_cryptid and find_joker('cry-Maximized')[1] and SEALS.face_check(card, true) then
         ranks['10'] = true
     end
     if card.ability.soe_quantum_ranks and card.ability.soe_quantum_ranks[1] then
@@ -3177,7 +3179,7 @@ SMODS.DrawStep {
 ]]
 
 local abovehand
-if Cryptid then
+if has_cryptid then
     abovehand = 'cry_WholeDeck'
 else
     abovehand = 'Flush Five'
@@ -6591,7 +6593,7 @@ SMODS.DrawStep{
 }
 
 local unorganizedrarity
-if Cryptid then
+if has_cryptid then
     unorganizedxmult = 2.2
     unorganizedrarity = 'cry_epic'
 else
@@ -6689,7 +6691,7 @@ SMODS.Joker{
 }
 
 local exoticrarity
-if Cryptid then
+if has_cryptid then
     exoticrarity = 'cry_exotic'
 else
     exoticrarity = 'soe_infinity'
@@ -6931,7 +6933,7 @@ function SEALS.get_card_name(card, ui, vars)
     end
 end
 
-if Cryptid and Talisman then
+if has_cryptid and Talisman then
     SMODS.Joker{
         key = 'thinkingemoji',
         atlas = 'Think',
@@ -7166,7 +7168,7 @@ SMODS.Joker{
     eternal_compat = true,
     perishable_compat = false,
     calculate = function(self, card, context)
-        if ((context.individual and context.cardarea == G.play) or (context.post_trigger and context.other_card.config.center_key ~= self.key and context.other_card ~= card.soe_realcard)) and SEALS.get_seals(context.other_card)[1] then
+        if ((context.individual and context.cardarea == G.play) or (context.post_trigger and context.other_card.config and context.other_card.config.center_key ~= self.key and context.other_card ~= card.soe_realcard)) and SEALS.get_seals(context.other_card)[1] then
             local other_card = context.other_card
             return {func = function()
                 local results = SEALS.forcetriggerseals(other_card)
@@ -7177,11 +7179,11 @@ SMODS.Joker{
                             v.remove_default_message = true
                             v.message = 'Sealtrigger!'
                             v.colour = G.C.PURPLE
-                            if Cryptid then v.sound = 'cry_demitrigger' end
+                            if has_cryptid then v.sound = 'cry_demitrigger' end
                         end
                         results = SMODS.merge_effects(results)
                     else
-                        results = {message_card = card, message = 'Sealtrigger!', colour = G.C.PURPLE, sound = Cryptid and 'cry_demitrigger' or nil}
+                        results = {message_card = card, message = 'Sealtrigger!', colour = G.C.PURPLE, sound = has_cryptid and 'cry_demitrigger' or nil}
                     end
                     SMODS.calculate_effect(results, card)
                 end
@@ -7222,7 +7224,7 @@ SMODS.Joker{
     end
 }
 
-if Cryptid then
+if has_cryptid then
     local oldsmodssoundscrymusicexoticselectmusictrack = SMODS.Sounds.cry_music_exotic.select_music_track
     SMODS.Sounds.cry_music_exotic.select_music_track = function()
         return (Cryptid_config and Cryptid_config.Cryptid and Cryptid_config.Cryptid.exotic_music and (not not next(Cryptid.advanced_find_joker(nil, 'soe_infinity', nil, nil, true)))) or oldsmodssoundscrymusicexoticselectmusictrack()

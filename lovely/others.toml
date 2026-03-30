@@ -733,7 +733,7 @@ if not highest or (highest.ability.set ~= 'Enhanced' and highest.ability.set ~= 
     highest = nil
     local rarities = {'Common', 'Uncommon', 'Rare', 'Legendary'}
     for _, v in ipairs(hand) do
-        if not highest or SEALS.order_of_rarities_indexed[rarities[v.config.center.rarity] or v.config.center.rarity] > SEALS.order_of_rarities_indexed[rarities[highest.config.center.rarity] or highest.config.center.rarity] then
+        if not highest or v.config.center.rarity and SEALS.order_of_rarities_indexed[rarities[v.config.center.rarity] or v.config.center.rarity] > SEALS.order_of_rarities_indexed[rarities[highest.config.center.rarity] or highest.config.center.rarity] then
             highest = v
         end
     end

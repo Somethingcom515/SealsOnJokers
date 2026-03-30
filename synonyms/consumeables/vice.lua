@@ -33,7 +33,7 @@ SMODS.Consumable {
     unlocked = true,
     discovered = true,
     soe_alternative = 'c_fool',
-    loc_vars = function(_, info_queue, _)
+    loc_vars = function(_, info_queue)
         local idiot_c = G.GAME.soe_last_sold_joker and G.P_CENTERS[G.GAME.soe_last_sold_joker] or nil
         local last_sold_joker = idiot_c and localize({type = 'name_text', key = idiot_c.key, set = idiot_c.set}) or localize('k_none')
 
@@ -57,7 +57,7 @@ SMODS.Consumable {
 
         return {vars = {last_sold_joker}, main_end = main_end}
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
@@ -72,7 +72,7 @@ SMODS.Consumable {
         }))
         delay(0.6)
     end,
-    can_use = function(self, card)
+    can_use = function()
         return G.jokers.config.card_limit > #G.jokers.cards and G.GAME.soe_last_sold_joker
     end
 }
@@ -86,7 +86,7 @@ SMODS.Consumable {
     pos = { x = 4, y = 0 },
     soe_alternative = 'c_emperor',
     config = {extra = {}},
-    use = function(self, card, area, copier)
+    use = function(_, card)
         for i = 1, 2 do
             G.E_MANAGER:add_event(Event({
                 trigger = 'after',
@@ -106,7 +106,7 @@ SMODS.Consumable {
         end
         delay(0.6)
     end,
-    can_use = function(self, card)
+    can_use = function(_, card)
         return G.consumeables and (#G.consumeables.cards + (card.area == G.consumeables and 0 or 1)) < G.consumeables.config.card_limit
     end
 }
@@ -180,8 +180,8 @@ SMODS.Consumable {
         }))
         delay(0.5)
     end,
-    can_use = function(self, card)
-        if G.jokers and #G.jokers.highlighted > 0 and #G.jokers.highlighted <= card.ability.max_highlighted then
+    can_use = function(_, card)
+        if G.jokers and G.jokers.highlighted[1] and #G.jokers.highlighted <= card.ability.max_highlighted then
             for _, v in ipairs(G.jokers.highlighted) do
                 if v.config.center.immutable or v.ability.set ~= "Joker" then
                     return false
@@ -202,10 +202,10 @@ SMODS.Consumable {
     discovered = true,
     soe_alternative = 'c_hanged_man',
     config = {max_highlighted = 2, min_highlighted = 1},
-    loc_vars = function (self, info_queue, card)
+    loc_vars = function (_, _, card)
         return {vars = {card.ability.max_highlighted}}
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
@@ -229,7 +229,7 @@ SMODS.Consumable {
         }))
         delay(0.3)
     end,
-    can_use = function(self, card)
+    can_use = function(_, card)
         return G.jokers and #G.jokers.highlighted >= card.ability.min_highlighted and #G.jokers.highlighted <= card.ability.max_highlighted
     end
 }
@@ -243,13 +243,13 @@ SMODS.Consumable{
     discovered = true,
     soe_alternative = 'c_death',
     config = {max_highlighted = 2, min_highlighted = 2},
-    loc_vars = function(self, info_queue, card)
+    loc_vars = function(_, _, card)
         return { vars = { card.ability.max_highlighted } }
     end,
     can_use = function(self, card)
         return G.jokers and #G.jokers.highlighted >= card.ability.min_highlighted and #G.jokers.highlighted <= card.ability.max_highlighted
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
