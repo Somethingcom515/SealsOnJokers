@@ -22,7 +22,7 @@ match_indent = true
 [[patches]]
 [patches.pattern]
 target = "game.lua"
-pattern = 'Jimbo:say_stuff(5)'
+pattern = 'Jimbo:say_stuff((extra and extra.times) or 5, false, quip)'
 position = "after"
 payload = """
 G.E_MANAGER:add_event(Event({
@@ -57,7 +57,7 @@ match_indent = true
 [[patches]]
 [patches.pattern]
 target = "functions/state_events.lua"
-pattern = 'Jimbo:say_stuff(5)'
+pattern = 'Jimbo:say_stuff((extra and extra.times) or 5, false, quip)'
 position = "after"
 payload = """
 G.E_MANAGER:add_event(Event({

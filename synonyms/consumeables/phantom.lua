@@ -16,6 +16,17 @@ SMODS.ConsumableType{
     end,
 }
 
+local function tc(t, e)
+    if t and type(t) == 'table' then
+        for _, v in pairs(t) do
+            if v == e then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 SMODS.Consumable{
     key = 'sacrifice',
     set = 'soe_Phantom',
@@ -24,18 +35,16 @@ SMODS.Consumable{
     unlocked = true,
     discovered = true,
     soe_alternative = 'c_immolate',
-    config = { extra = { destroy = 5, dollars = 20 } },
-    loc_vars = function(self, info_queue, card)
-        return { vars = { card.ability.extra.destroy, card.ability.extra.dollars } }
+    config = {extra = {destroy = 5, dollars = 20}},
+    loc_vars = function(_, _, card)
+        return {vars = {card.ability.extra.destroy, card.ability.extra.dollars}}
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         local destroyed_cards = {}
         local temp_hand = {}
-
-        for _, ccard in ipairs(G.jokers.cards) do if not ccard.ability.eternal then temp_hand[#temp_hand + 1] = ccard end end
+        for _, ccard in ipairs(G.jokers.cards) do if not ccard.ability.eternal then temp_hand[#temp_hand+1] = ccard end end
         pseudoshuffle(temp_hand, pseudoseed('sacrifice'))
-        for i = 1, card.ability.extra.destroy do destroyed_cards[#destroyed_cards + 1] = temp_hand[i] end
-
+        for i = 1, card.ability.extra.destroy do destroyed_cards[#destroyed_cards+1] = temp_hand[i] end
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
@@ -54,7 +63,7 @@ SMODS.Consumable{
             end
         }))
         delay(0.5)
-        ease_dollars(card.ability.extra.dollars)
+        ease_dollars(card.ability.extra.dollars*#destroyed_cards)
         delay(0.3)
     end,
     can_use = function(self, card)
@@ -70,36 +79,33 @@ SMODS.Consumable{
     unlocked = true,
     discovered = true,
     soe_alternative = 'c_hex',
-    config = {},
-    can_use = function(self,card)
+    can_use = function()
         if (G.STATE == G.STATES.SELECTING_HAND or G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.SPECTRAL_PACK or G.STATE == G.STATES.PLANET_PACK or G.STATE == G.STATES.SMODS_BOOSTER_OPENED) and #G.hand.cards > 1 and #SMODS.Edition:get_edition_cards(G.hand, true) > 0 then
             return true
         end
         return false
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         local editionless_cards = SMODS.Edition:get_edition_cards(G.hand, true)
-        local destroyed_cards = {}
-        G.E_MANAGER:add_event(Event({
-            trigger = 'after',
-            delay = 0.4,
-            func = function()
-                local eligible_card = pseudorandom_element(editionless_cards, pseudoseed('decimal'))
-                eligible_card:set_edition({ polychrome = true })
-                local _first_dissolve = nil
-                for _, card in pairs(G.hand.cards) do
-                    if card ~= eligible_card and (not card.ability.eternal) then
-                        table.insert(destroyed_cards, card)
-                        card:start_dissolve(nil, _first_dissolve)
-                        _first_dissolve = true
+        if editionless_cards[1] then
+            G.E_MANAGER:add_event(Event({
+                trigger = 'after',
+                delay = 0.4,
+                func = function()
+                    local destroyed_cards = {}
+                    local eligible_card = pseudorandom_element(editionless_cards, pseudoseed('decimal'))
+                    eligible_card:set_edition('e_polychrome')
+                    for _, v in ipairs(G.hand.cards) do
+                        if v ~= eligible_card and not SMODS.is_eternal(v, card) then
+                            destroyed_cards[#destroyed_cards+1] = v
+                        end
                     end
+                    SMODS.destroy_cards(destroyed_cards)
+                    card:juice_up(0.3, 0.5)
+                    return true
                 end
-
-                card:juice_up(0.3, 0.5)
-                return true
-            end
-        }))
-        SMODS.calculate_context({ remove_playing_cards = true, removed = destroyed_cards })
+            }))
+        end
     end,
 }
 
@@ -111,24 +117,18 @@ SMODS.Consumable{
     unlocked = true,
     discovered = true,
     soe_alternative = 'c_cryptid',
-    config = { max_highlighted = 1, extra = { cards = 2 } },
-    loc_vars = function(self, info_queue, card)
-        return { vars = { card.ability.extra.cards, card.ability.max_highlighted } }
+    config = {extra = {max_highlighted = 1, cards = 2}},
+    loc_vars = function(_, _, card)
+        return {vars = {card.ability.extra.cards, card.ability.extra.max_highlighted}}
     end,
-    can_use = function(self, card)
-        return G.jokers and #G.jokers.highlighted <= card.ability.max_highlighted and #G.jokers.highlighted > 0
+    can_use = function(_, card)
+        return #G.jokers.highlighted <= card.ability.extra.max_highlighted and #G.jokers.highlighted > 0
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             func = function()
-                local _first_dissolve = nil
-                local new_cards = {}
-                for i = 1, card.ability.extra.cards do
-                    local _card = copy_card(G.jokers.highlighted[1])
-                    _card:add_to_deck()
-                    G.jokers:emplace(_card)
-                    _card:start_materialize(nil, _first_dissolve)
-                    _first_dissolve = true
+                for _=1, card.ability.extra.cards do
+                    SEALS.copy_card(G.jokers.highlighted[1])
                 end
                 return true
             end
@@ -147,10 +147,10 @@ SMODS.Consumable{
     soul_set = 'soe_Phantom',
     config = {},
     hidden = true,
-    can_use = function(self, card)
+    can_use = function()
         return #G.jokers.cards < G.jokers.config.card_limit
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
@@ -176,9 +176,21 @@ SMODS.Consumable{
     soe_alternative = 'c_deja_vu',
     unlocked = true,
     discovered = true,
-    use = function(self, card, area, copier)
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue+1] = {set = 'Other', key = 'soe_detach'}
+        if not self.can_use(nil, card) then return end
         local conv_card
-        for i, v in ipairs(G.I.CARD) do
+        for _, v in ipairs(G.I.CARD) do
+            if v.highlighted and v ~= card then
+                conv_card = v
+                break
+            end
+        end
+        info_queue[#info_queue+1] = {set = 'soe_DetachedSeal', key = conv_card.seal}
+    end,
+    use = function(_, card)
+        local conv_card
+        for _, v in ipairs(G.I.CARD) do
             if v.highlighted and v ~= card then
                 conv_card = v
                 break
@@ -191,7 +203,6 @@ SMODS.Consumable{
                 return true
             end
         }))
-
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.1,
@@ -199,15 +210,17 @@ SMODS.Consumable{
                 local oldseal = conv_card.seal
                 SEALS.remove_seal(conv_card)
                 conv_card:juice_up(0.3, 0.3)
-                play_sound("soe_laes_dlog", 1.2, 0.4)
-                local detachedseal = Card(conv_card.T.x, conv_card.T.y, G.CARD_W/2.63, G.CARD_H/3.52, G.P_CARDS.empty, G.P_CENTERS.c_base)
-                for k, v in pairs((SEALS.detached_seals[oldseal] or {}).config or {}) do
-                    detachedseal.ability[k] = copy_table(v)
+                play_sound('soe_laes_dlog', 1.2, 0.4)
+                local detachedseal = Card(conv_card.T.x, conv_card.T.y, G.CARD_W/2.63, G.CARD_H/3.52, nil, G.P_CENTERS.c_base)
+                if SEALS.detached_seals[oldseal] and SEALS.detached_seals[oldseal].config then
+                    for k, v in pairs(SEALS.detached_seals[oldseal].config) do
+                        detachedseal.ability[k] = copy_table(v)
+                    end
                 end
-                detachedseal.ability.set = "Seal"
+                detachedseal.ability.set = 'Seal'
                 detachedseal.ability.soe_detached_seal = oldseal
                 if detachedseal.children.center then detachedseal.children.center:remove() end
-                detachedseal.children.center = Sprite(detachedseal.T.x, detachedseal.T.y, detachedseal.T.w, detachedseal.T.h, G.ASSET_ATLAS["soe_SealsIndividual"], {x = ({Red=0,Blue=1,Gold=2,Purple=3})[oldseal], y = 0})
+                detachedseal.children.center = SMODS.create_sprite(detachedseal.T.x, detachedseal.T.y, detachedseal.T.w, detachedseal.T.h, 'soe_SealsIndividual', {x = ({Red=0,Blue=1,Gold=2,Purple=3})[oldseal], y = 0})
                 detachedseal.children.center.states.hover = detachedseal.states.hover
                 detachedseal.children.center.states.click = detachedseal.states.click
                 detachedseal.children.center.states.drag = detachedseal.states.drag
@@ -215,13 +228,12 @@ SMODS.Consumable{
                 detachedseal.children.center:set_role({major = detachedseal, role_type = 'Glued', draw_major = detachedseal})
                 detachedseal:juice_up(0.3, 0.3)
                 G.GAME.soe_detached_seal_keys = G.GAME.soe_detached_seal_keys or {}
-                table.insert(G.GAME.soe_detached_seal_keys, oldseal)
+                G.GAME.soe_detached_seal_keys[#G.GAME.soe_detached_seal_keys+1] = oldseal
                 G.GAME.soe_detached_seals = G.GAME.soe_detached_seals or {}
-                table.insert(G.GAME.soe_detached_seals, detachedseal)
+                G.GAME.soe_detached_seals[#G.GAME.soe_detached_seals+1] = detachedseal
                 return true
             end
         }))
-
         delay(0.5)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
@@ -232,14 +244,15 @@ SMODS.Consumable{
             end
         }))
     end,
-    can_use = function (self, card)
+    can_use = function (_, card)
         local highlighted_cards = {}
-        for i, v in ipairs(G.I.CARD) do
-            if v and v.highlighted and v ~= card then
-                table.insert(highlighted_cards, v)
+        for _, v in ipairs(G.I.CARD) do
+            if v.highlighted and v ~= card then
+                highlighted_cards[#highlighted_cards+1] = v
+                if #highlighted_cards > 1 then return false end
             end
         end
-        return G.STAGE == G.STAGES.RUN and #highlighted_cards == 1 and highlighted_cards[1].seal and ({Red=true,Blue=true,Gold=true,Purple=true})[highlighted_cards[1].seal]
+        return highlighted_cards[1] and highlighted_cards[1].seal and ({Red=true,Blue=true,Gold=true,Purple=true})[highlighted_cards[1].seal]
     end
 }
 
@@ -251,46 +264,25 @@ SMODS.Consumable{
     pos = {x = 1, y = 0},
     hidden = true,
     soul_set = 'soe_Phantom',
-    soul_rate = 0.01,
+    soul_rate = 0.02,
     soe_alternative = 'c_deja_vu',
     unlocked = true,
     discovered = true,
-    loc_vars = function (self, info_queue, card)
-        card.ability.extra.max_highlighted = math.max(2, card.ability.extra.max_highlighted)
+    loc_vars = function(_, _, card)
         return {vars = {math.max(2, card.ability.extra.max_highlighted)}}
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         local merged_cards = {}
-        for i, v in ipairs(G.I.CARD) do
-            if v.highlighted and v ~= card then
-                if v.area ~= G.jokers then
-                    table.insert(merged_cards, v)
-                else
-                    table.insert(merged_cards, 1, v)
-                end
-                if #merged_cards >= math.max(2, card.ability.extra.max_highlighted) then
-                    break
+        local areas = {G.jokers, G.consumeables, G.hand}
+        for _, area in ipairs(areas) do
+            table.sort(area.highlighted, function(a, b) return a.T.x < b.T.x end)
+            for _, v in ipairs(area.highlighted) do
+                if v ~= card then
+                    merged_cards[#merged_cards+1] = v
                 end
             end
         end
-        local areacheck = true
-        for i=1, #merged_cards do
-            if not (merged_cards[1].area and merged_cards[i].area and merged_cards[1].area == merged_cards[i].area) then
-                areacheck = false
-                break
-            end
-        end
-        if areacheck then
-            local oldmerged_cards = merged_cards
-            merged_cards = {}
-            for i, v in ipairs(oldmerged_cards[1].area.cards) do
-                if table.contains(oldmerged_cards, v) then
-                    table.insert(merged_cards, v)
-                end
-            end
-        end
-        local final_card = merged_cards[1]
-        table.remove(merged_cards, 1)
+        local final_card = table.remove(merged_cards, 1)
         G.E_MANAGER:add_event(Event({
             func = function()
                 play_sound('tarot1')
@@ -311,8 +303,10 @@ SMODS.Consumable{
             trigger = 'after',
             delay = 0.2,
             func = function()
-                for i, v in ipairs(merged_cards) do
-                    if v.area then
+                local passed = {}
+                for _, v in ipairs(merged_cards) do
+                    if v.area and not passed[v.area] then
+                        passed[v.area] = true
                         v.area:unhighlight_all()
                     end
                 end
@@ -320,14 +314,18 @@ SMODS.Consumable{
             end
         }))
     end,
-    can_use = function (self, card)
+    can_use = function(_, card)
         local highlighted_cards = {}
-        for i, v in ipairs(G.I.CARD) do
-            if v and v.highlighted and v ~= card then
-                table.insert(highlighted_cards, v)
+        local areas = {G.jokers, G.consumeables, G.hand}
+        for _, area in ipairs(areas) do
+            table.sort(area.highlighted, function(a, b) return a.T.x < b.T.x end)
+            for _, v in ipairs(area.highlighted) do
+                if v ~= card then
+                    highlighted_cards[#highlighted_cards+1] = v
+                end
             end
         end
-        return G.STAGE == G.STAGES.RUN and #highlighted_cards >= 2 and #highlighted_cards <= math.max(2, card.ability.extra.max_highlighted)
+        return highlighted_cards[2] and #highlighted_cards <= math.max(2, card.ability.extra.max_highlighted)
     end
 }
 
@@ -335,7 +333,7 @@ SMODS.DrawStep {
     key = 'psychesoul',
     order = 50,
     func = function(self)
-        if self.config.center.key == "c_soe_psyche" and (self.config.center.discovered or self.bypass_discovery_center) then
+        if self.config.center_key == 'c_soe_psyche' and (self.config.center.discovered or self.bypass_discovery_center) then
             local scale_mod = 0.05 + 0.05*math.sin(1.8*G.TIMERS.REAL) + 0.07*math.sin((G.TIMERS.REAL - math.floor(G.TIMERS.REAL))*math.pi*14)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^3
             local rotate_mod = 0.1*math.sin(1.219*G.TIMERS.REAL) + 0.07*math.sin((G.TIMERS.REAL)*math.pi*5)*(1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL)))^2
 

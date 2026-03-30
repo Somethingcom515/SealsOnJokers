@@ -60,14 +60,14 @@ end
 
 G.FUNCS.can_calc_joker_hands = function(e)
     if G.GAME.soe_joker_hands_available then
-        e.states.button = "calc_joker_hands"
+        e.states.button = 'calc_joker_hands'
     else
         e.states.button = nil
     end
 end
 
 G.FUNCS.calc_joker_hands = function(e)
-    local hands = SEALS.evaluate_joker_hands(G.jokers.cards) or {}
+    local hands = SEALS.evaluate_joker_hands() or {}
     sendInfoMessage("Here are your currently active joker hands:", "SEALS")
     for k, v in pairs(hands) do
         sendInfoMessage(v, "SEALS")
@@ -78,10 +78,10 @@ local oldinitgameobject = Game.init_game_object
 function Game:init_game_object()
     local ret = oldinitgameobject(self)
     ret.soe_joker_hands = {
-        ["soe_simple_jimbo"] = {jokers = {"j_joker"}},
-        ["soe_best_brothers"] = {jokers = {"j_odd_todd", "j_even_steven"}},
+        soe_simple_jimbo = {jokers = {'j_joker'}},
+        soe_best_brothers = {jokers = {'j_odd_todd', 'j_even_steven'}},
     }
-    for k, v in pairs(ret.soe_joker_hands) do
+    for _, v in pairs(ret.soe_joker_hands) do
         v.level = 1
         v.l_chips = 3
         v.l_mult = 3
@@ -96,16 +96,17 @@ function Game:init_game_object()
 end
 
 SEALS.find_card_in_area = function(key, area)
-    for k, v in pairs(area) do
-        if v.config.center.key == key then
+    for _, v in ipairs(area) do
+        if v.config.center_key == key then
             return true
         end
     end
     return false
 end
 
-function SEALS.evaluate_joker_hands(jokers)
-    if not jokers or not G.GAME or not G.GAME.soe_joker_hands then return nil end
+function SEALS.evaluate_joker_hands()
+    if not G.GAME or not G.GAME.soe_joker_hands then return end
+    local jokers = G.jokers.cards
     local hands = {}
     for k, v in pairs(G.GAME.soe_joker_hands) do
         local check = 0
@@ -114,7 +115,7 @@ function SEALS.evaluate_joker_hands(jokers)
                 hands[k] = localize(k, 'soe_joker_hands')
             end
         elseif v.jokers then
-            for kk, vv in pairs(v.jokers) do
+            for _, vv in ipairs(v.jokers) do
                 if SEALS.find_card_in_area(vv, jokers) then
                     check = check + 1
                 end
@@ -135,27 +136,27 @@ SMODS.Consumable{
     unlocked = true,
     discovered = true,
     soe_alternative = 'c_pluto',
-    config = {joker_hand_type = "soe_simple_jimbo"},
-	loc_vars = function(self, info_queue, center)
+    config = {joker_hand_type = 'soe_simple_jimbo'},
+	loc_vars = function()
 		return {
 			vars = {
-				localize("soe_simple_jimbo", "soe_joker_hands"),
-                G.GAME.soe_joker_hands["soe_simple_jimbo"].level,
-                G.GAME.soe_joker_hands["soe_simple_jimbo"].l_mult,
-                G.GAME.soe_joker_hands["soe_simple_jimbo"].l_chips,
+				localize('soe_simple_jimbo', 'soe_joker_hands'),
+                G.GAME.soe_joker_hands.soe_simple_jimbo.level,
+                G.GAME.soe_joker_hands.soe_simple_jimbo.l_mult,
+                G.GAME.soe_joker_hands.soe_simple_jimbo.l_chips,
 				colours = {
 					(
-						to_big(G.GAME.soe_joker_hands["soe_simple_jimbo"].level) == to_big(1) and G.C.UI.TEXT_DARK
-						or G.C.HAND_LEVELS[to_number(to_big(math.min(7, G.GAME.soe_joker_hands["soe_simple_jimbo"].level)))]
+						to_big(G.GAME.soe_joker_hands.soe_simple_jimbo.level) == to_big(1) and G.C.UI.TEXT_DARK
+						or G.C.HAND_LEVELS[to_number(to_big(math.min(7, G.GAME.soe_joker_hands.soe_simple_jimbo.level)))]
 					),
 				},
 			},
 		}
 	end,
-    use = function (self, card, area, copier)
-        SEALS.level_up_joker_hand(card, "soe_simple_jimbo")
+    use = function (_, card)
+        SEALS.level_up_joker_hand(card, 'soe_simple_jimbo')
     end,
-    can_use = function (self, card)
+    can_use = function()
         return true
     end,
 }

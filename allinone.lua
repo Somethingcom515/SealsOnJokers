@@ -1,8 +1,3 @@
-local cryptidyeohna = false
-if SEALS.find_mod("Cryptid") then
-    cryptidyeohna = true
-end
-
 --[[
 function SEALS.create_fake_card(reference, key, reasonforcreation, juicecard, isseal, isconsumeable, dontsave)
     local center = G.P_CENTERS[key]
@@ -167,7 +162,7 @@ local function find_matching_tables(effect, return_values)
     return matching_tables
 end
 
-if cryptidyeohna then
+if Cryptid then
     local oldadvancedfindjoker = Cryptid.advanced_find_joker
     function Cryptid.advanced_find_joker(name, rarity, edition, ability, non_debuff, area)
         local jokers = oldadvancedfindjoker(name, rarity, edition, ability, non_debuff, area)
@@ -239,7 +234,7 @@ function SEALS.change_sprite(key, card, event)
                 local atlas = G.ASSET_ATLAS[center.atlas] or G.ASSET_ATLAS["Joker"]
                 card.children.center.atlas = atlas
                 card.children.center:set_sprite_pos(center.pos)
-                if card.children.floating_sprite and type(card.children.floating_sprite) == "table" then
+                if card.children.floating_sprite then
                     card.children.floating_sprite.atlas = atlas
                     if center.soul_pos then
                         card.children.floating_sprite:set_sprite_pos(center.soul_pos)
@@ -247,7 +242,7 @@ function SEALS.change_sprite(key, card, event)
                         card.children.floating_sprite:set_sprite_pos({x = 1000, y = 1000})
                     end
                 end
-                if card.children.floating_sprite2 and type(card.children.floating_sprite2) == "table" then
+                if card.children.floating_sprite2 then
                     card.children.floating_sprite2.atlas = atlas
                     if center.soul_pos and center.soul_pos.extra then
                         card.children.floating_sprite2:set_sprite_pos(center.soul_pos.extra)
@@ -288,14 +283,14 @@ function SEALS.get_some_jokers_returns_combined(context, card, list)
         if type(v) == "table" and v.key then v = v.key end
         local center = G.P_CENTERS[v]
         local effect = SEALS.get_joker_return(v, context, card, not center.mod)
-        if effect and type(effect) == 'table' and card.config.center.key == "j_soe_allinone" then
+        if effect and type(effect) == 'table' and card.config.center_key == "j_soe_allinone" then
             effect.sealsfakekey = v
             effect.sealscard = card
             effect.func = function()
                 card.ability.extra.currentjoker = G.P_CENTERS[v]
             end
         end
-        if (effect and not effect.repetitions) or card.config.center.key ~= "j_soe_allinone" then
+        if (effect and not effect.repetitions) or card.config.center_key ~= "j_soe_allinone" then
             effects_table[#effects_table+1] = effect
         end
         table.sort(effects_table, function(a, b)
@@ -355,7 +350,7 @@ function SEALS.get_joker_return(key, context, card, isvanilla, juicecard)
         card.ability.savedvalues = card.ability.savedvalues or {}
         card.ability.savedvalues[key] = card.ability.savedvalues[key] or copy_table(center.config)
         local fake_card = SEALS.create_fake_card(card, key, "calculate", juicecard)
-        if card.config.center.key == "j_soe_allinone" then
+        if card.config.center_key == "j_soe_allinone" then
             card.ability.extra.currentjoker = center
         end
         if center.calculate and type(center.calculate) == "function" and not isvanilla then
@@ -403,8 +398,8 @@ function card_eval_status_text(card, eval_type, amt, percent, dir, extra)
     if card.sealsfakecard and card.sealsmessagecard then
         local oldcard = card
         card = card.sealsmessagecard
-        local v = oldcard.config.center.key
-        if card.config.center.key == "j_soe_allinone" then
+        local v = oldcard.config.center_key
+        if card.config.center_key == "j_soe_allinone" then
             SEALS.change_sprite(v, card, true)
             G.E_MANAGER:add_event(Event({
                 func = function()
@@ -431,7 +426,7 @@ G.FUNCS.soe_reroll_card = function(e)
     play_sound('other1')
     local jokers = {}
     for _, v in ipairs(G.P_CENTER_POOLS.Joker) do
-        if v.key ~= card.config.center.key then
+        if v.key ~= card.config.center_key then
             table.insert(jokers, v.key)
         end
     end
@@ -452,7 +447,7 @@ local use_and_sell_buttonsref = G.UIDEF.use_and_sell_buttons
 function G.UIDEF.use_and_sell_buttons(card)
 	local retval = use_and_sell_buttonsref(card)
 
-	if card.area and card.ability.set == 'Joker' and card.config.center.key == "j_soe_raspberryprint" then
+	if card.area and card.ability.set == 'Joker' and card.config.center_key == "j_soe_raspberryprint" then
 		local fuse =
 		{n=G.UIT.C, config={align = "cr"}, nodes={
 
@@ -567,7 +562,7 @@ SMODS.Joker{
         end
         if context.joker_main or context.forcetrigger then
             local fake_card = SEALS.create_fake_card(card, card.ability.extra.currentjoker, "use", nil, nil, true, true)
-            if cryptidyeohna then
+            if Cryptid then
                 return Cryptid.forcetrigger(fake_card, context)
             else
                 local thunk = G.GAME.probabilities.normal
@@ -842,8 +837,8 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                 local effects_table = {}
                 for k, v in pairs(context.scoring_hand) do
                     if not v.debuff and v.ability.set == "Joker" then
-                        local effect, fake_card = SEALS.get_joker_return(v.config.center.key, context, card, not v.config.center.mod, v)
-                        if cryptidyeohna and context.individual and context.other_card == v and Cryptid.demicolonGetTriggerable(fake_card)[1] then
+                        local effect, fake_card = SEALS.get_joker_return(v.config.center_key, context, card, not v.config.center.mod, v)
+                        if Cryptid and context.individual and context.other_card == v and Cryptid.demicolonGetTriggerable(fake_card)[1] then
                             local results = Cryptid.forcetrigger(fake_card, context)
                             if results and results.jokers then effects_table[#effects_table+1] = results.jokers end 
                         end
@@ -884,7 +879,7 @@ if SEALS.find_mod("aikoyorisshenanigans") then
                         table.insert(G.playing_cards, card)
                     end
                     local card2 = SMODS.add_card({key = "j_soe_playingcardjokersactivator", edition = "e_negative"})
-                    SMODS.Stickers["soe_epsilon"]:apply(card2, true)
+                    SMODS.Stickers.soe_epsilon:apply(card2, true)
                     return true
                 end
             }))
@@ -905,7 +900,7 @@ SMODS.Keybind{
         if G.jokers and G.jokers.highlighted and #G.jokers.highlighted == 2 then
             local nonfinifusionjokers, infinifusionjokers = {}, {}
             for k, v in pairs(G.jokers.highlighted) do
-                if v.config.center.key ~= 'j_soe_newinfinifusion' then
+                if v.config.center_key ~= 'j_soe_newinfinifusion' then
                     table.insert(nonfinifusionjokers, v)
                 else
                     table.insert(infinifusionjokers, v)
@@ -916,7 +911,7 @@ SMODS.Keybind{
                 local card = SMODS.add_card({key = "j_soe_newinfinifusion", no_edition = true})
                 card:set_edition(nil, true, true)
                 for k, v in pairs(nonfinifusionjokers) do
-                    table.insert(card.ability.extra.currentjokers, v.config.center.key)
+                    table.insert(card.ability.extra.currentjokers, v.config.center_key)
                     v:remove()
                 end
             else
@@ -924,7 +919,7 @@ SMODS.Keybind{
                     play_sound('explosion_release1')
                     local card = infinifusionjokers[1]
                     for k, v in pairs(nonfinifusionjokers) do
-                        table.insert(card.ability.extra.currentjokers, v.config.center.key)
+                        table.insert(card.ability.extra.currentjokers, v.config.center_key)
                         v:remove()
                     end
                 elseif #infinifusionjokers == 2 then
