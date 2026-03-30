@@ -6766,7 +6766,7 @@ SMODS.Joker{
     pos = {x = 0, y = 0},
     soul_pos = {x = 1, y = 0},
     config = {extra = {fusion_cost = 50}},
-    rarity = (Entropy and 'entr_entropic') or exoticrarity,
+    rarity = (SEALS.find_mod('entr') and 'entr_entropic') or exoticrarity,
     cost = 55,
     unlocked = true,
     discovered = true,
