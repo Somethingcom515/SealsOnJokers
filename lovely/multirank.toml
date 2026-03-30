@@ -4,7 +4,7 @@ dump_lua = true
 priority = 214748364
 
 # From All-in-Jest!
-# https://github.com/survovoaneend/All-In-Jest/wiki/Multi%E2%80%90rank-Implementation
+# They removed the link because apparently it was "unstable"
 [[patches]]
 [patches.pattern]
 target = "main.lua"
@@ -16,36 +16,36 @@ local id_patterns = id_patterns or nil
 local patched_cache = patched_cache or {}
 if not id_patterns then
     id_patterns = {}
-    table.insert(id_patterns, {
+    id_patterns[#id_patterns+1] = {
         patt = "([%w_.#]+):get_id%(%s*%)%s*%%%s*([%w_.%(%)#]+)%s*==%s*([%w_.%(%)#]+)",
         repl = "ids_op(%1, \"mod\", %2, %3)"
-    })
+    }
     local ops = { ">=", "<=", "~=", "==", ">", "<" }
     for _, op in ipairs(ops) do
         local esc = op:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        table.insert(id_patterns, {
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+):get_id%(%s*%)",
             repl = "ids_op(%1, \"" .. op .. "\", %2:get_id())"
-        })
-        table.insert(id_patterns, {
+        }
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+)",
             repl = "ids_op(%1, \"" .. op .. "\", %2)"
-        })
+        }
     end
-    table.insert(id_patterns, {
+    id_patterns[#id_patterns+1] = {
         patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*%%%s*([%w_.%(%)]+)%s*==%s*([%w_.%(%)]+)",
         repl = "ids_op(%1, \"mod\", %2, %3)"
-    })
+    }
     for _, op in ipairs(ops) do
         local esc = op:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        table.insert(id_patterns, {
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+%b[]):get_id%(%s*%)",
             repl = "ids_op(%1, \"" .. op .. "\", %2:get_id())"
-        })
-        table.insert(id_patterns, {
+        }
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.%(%)]+)",
             repl = "ids_op(%1, \"" .. op .. "\", %2)"
-        })
+        }
     end
     -- insert other_patch_text additions here
 end
@@ -97,36 +97,36 @@ local id_patterns = id_patterns or nil
 local patched_cache = patched_cache or {}
 if not id_patterns then
     id_patterns = {}
-    table.insert(id_patterns, {
+    id_patterns[#id_patterns+1] = {
         patt = "([%w_.#]+):get_id%(%s*%)%s*%%%s*([%w_.%(%)#]+)%s*==%s*([%w_.%(%)#]+)",
         repl = "ids_op(%1, \"mod\", %2, %3)"
-    })
+    }
     local ops = { ">=", "<=", "~=", "==", ">", "<" }
     for _, op in ipairs(ops) do
         local esc = op:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        table.insert(id_patterns, {
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+):get_id%(%s*%)",
             repl = "ids_op(%1, \"" .. op .. "\", %2:get_id())"
-        })
-        table.insert(id_patterns, {
+        }
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+)",
             repl = "ids_op(%1, \"" .. op .. "\", %2)"
-        })
+        }
     end
-    table.insert(id_patterns, {
+    id_patterns[#id_patterns+1] = {
         patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*%%%s*([%w_.%(%)]+)%s*==%s*([%w_.%(%)]+)",
         repl = "ids_op(%1, \"mod\", %2, %3)"
-    })
+    }
     for _, op in ipairs(ops) do
         local esc = op:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        table.insert(id_patterns, {
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.#]+%b[]):get_id%(%s*%)",
             repl = "ids_op(%1, \"" .. op .. "\", %2:get_id())"
-        })
-        table.insert(id_patterns, {
+        }
+        id_patterns[#id_patterns+1] = {
             patt = "([%w_.#]+%b[]):get_id%(%s*%)%s*" .. esc .. "%s*([%w_.%(%)]+)",
             repl = "ids_op(%1, \"" .. op .. "\", %2)"
-        })
+        }
     end
     -- insert other_patch_text additions here
 end
@@ -155,13 +155,13 @@ if not replaced_loader then
         if patched_cache[path] then
             return patched_cache[path]
         end
-        local content = real_read(path)
+        local content, err = real_read(path)
         if not content then
-            return content
+            return content, err
         end
         local fixed = patch_text(content)
         patched_cache[path] = fixed
-        return fixed
+        return fixed, err
     end
 end
 
@@ -177,4 +177,4 @@ position = "after"
 payload = '''
 NFS.read = real_read
 '''
-match_indent = true 
+match_indent = true

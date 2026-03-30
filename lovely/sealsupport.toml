@@ -22,7 +22,7 @@ match_indent = true
 [[patches]]
 [patches.pattern]
 target = "game.lua"
-pattern = 'Jimbo:say_stuff(5)'
+pattern = 'Jimbo:say_stuff((extra and extra.times) or 5, false, quip)'
 position = "after"
 payload = """
 G.E_MANAGER:add_event(Event({
@@ -57,7 +57,7 @@ match_indent = true
 [[patches]]
 [patches.pattern]
 target = "functions/state_events.lua"
-pattern = 'Jimbo:say_stuff(5)'
+pattern = 'Jimbo:say_stuff((extra and extra.times) or 5, false, quip)'
 position = "after"
 payload = """
 G.E_MANAGER:add_event(Event({
@@ -113,18 +113,25 @@ end
 '''
 position = "after"
 payload = '''
-if ret and SEALS.has_seal(_card, "Red") then
-    for ii = 1, SEALS.get_seal_count(_card, 'Red') do
-        SMODS.calculate_effect({message = localize('k_again_ex'), card = _card}, _card)
-        i = i+1
-        add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = _card})
-        pitch = pitch + 0.06
-        dollars = dollars + ret
-    end
-end
-if ret and SEALS.has_seal(_card, "Gold") then
-    for ii = 1, SEALS.get_seal_count(_card, 'Gold') do
-        SMODS.calculate_effect({dollars = 3, card = _card}, _card)
+if ret then
+    for _, __card in ipairs({_card, unpack(_card.ability.soe_mergedcards or {})}) do
+        local is_real = Card.is(__card, Card)
+        __card = Card.is(__card, Card) and __card or SEALS.copy_card_but_not(_card, __card.key, __card)
+        local ret = is_real and ret or  __card:calculate_dollar_bonus()
+        if SEALS.has_seal(__card, "Red") then
+            for ii = 1, SEALS.get_seal_count(__card, 'Red') do
+                SMODS.calculate_effect({message = localize('k_again_ex'), card = __card}, __card)
+                i = i+1
+                add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = __card})
+                pitch = pitch + 0.06
+                dollars = dollars + ret
+                if SEALS.has_seal(__card, "Gold") then
+                    for ii = 1, SEALS.get_seal_count(__card, 'Gold') do
+                        SMODS.calculate_effect({dollars = 3, card = __card}, __card)
+                    end
+                end
+            end
+        end
     end
 end
 '''

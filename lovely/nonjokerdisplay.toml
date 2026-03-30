@@ -66,7 +66,7 @@ if not JokerDisplay.Definitions[self.config.center.key] and"""
 position = "before"
 payload = """
 if self.playing_card and SEALS and SEALS.config.nonjokerdisplay then
-    JokerDisplay.Definitions[self.config.center.key] = {
+    JokerDisplay.Definitions[self.config.center_key] = {
         text = {
             {text = "+", colour = G.C.CHIPS},
             {ref_table = "card.base", ref_value = "soe_chip_value", colour = G.C.CHIPS},
@@ -115,7 +115,7 @@ payload = """
 JokerDisplay.Enhancement_Definitions = {
     m_mult = { -- Mult
         condition_function = function(card)
-            return not card.debuff and card.config.center.key == 'm_mult' and SEALS and SEALS.config.nonjokerdisplay
+            return not card.debuff and card.config.center_key == 'm_mult' and SEALS and SEALS.config.nonjokerdisplay
         end,
         mod_function = function(card)
             return {mult = card.ability.mult}
@@ -123,7 +123,7 @@ JokerDisplay.Enhancement_Definitions = {
     },
     m_bonus = { -- Bonus
         condition_function = function(card)
-            return not card.debuff and card.config.center.key == 'm_bonus' and SEALS and SEALS.config.nonjokerdisplay
+            return not card.debuff and card.config.center_key == 'm_bonus' and SEALS and SEALS.config.nonjokerdisplay
         end,
         mod_function = function(card)
             return {chips = card.ability.bonus}
@@ -138,7 +138,7 @@ JokerDisplay.Enhancement_Definitions = {
             { text = ")" },
         },
         condition_function = function(card)
-            return not card.debuff and card.config.center.key == 'm_glass' and SEALS and SEALS.config.nonjokerdisplay
+            return not card.debuff and card.config.center_key == 'm_glass' and SEALS and SEALS.config.nonjokerdisplay
         end,
         mod_function = function(card)
             return {x_mult = card.ability.x_mult}

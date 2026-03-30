@@ -8,19 +8,19 @@ SMODS.ConsumableType{
     default = "c_idiot",
     inject_card = function(self, center)
         SMODS.ObjectType.inject_card(self, center)
-        SMODS.insert_pool(G.P_CENTER_POOLS['soe_Synonyms'], center)
+        SMODS.insert_pool(G.P_CENTER_POOLS.soe_Synonyms, center)
     end,
     delete_card = function(self, center)
         SMODS.ObjectType.delete_card(self, center)
-        SMODS.remove_pool(G.P_CENTER_POOLS['soe_Synonyms'], center.key)
+        SMODS.remove_pool(G.P_CENTER_POOLS.soe_Synonyms, center.key)
     end,
 }
 
 local oldsellcard = Card.sell_card
 function Card:sell_card()
     local g = oldsellcard(self)
-    if self.ability.set == "Joker" then
-        G.GAME.soe_last_sold_joker = self.config.center.key
+    if self.ability.set == 'Joker' then
+        G.GAME.soe_last_sold_joker = self.config.center_key
     end
     return g
 end
@@ -28,36 +28,34 @@ end
 SMODS.Consumable {
     key = 'idiot',
     set = 'soe_Vice',
-    pos = { x = 0, y = 0 },
+    pos = {x = 0, y = 0},
     atlas = 'Synonyms',
+    unlocked = true,
+    discovered = true,
     soe_alternative = 'c_fool',
-    loc_vars = function(self, info_queue, card)
-        local fool_c = G.GAME.soe_last_sold_joker and G.P_CENTERS[G.GAME.soe_last_sold_joker] or nil
-        local last_tarot_planet = fool_c and localize { type = 'name_text', key = fool_c.key, set = fool_c.set } or
-            localize('k_none')
-        local colour = (not fool_c or fool_c.name == 'The Fool') and G.C.RED or G.C.GREEN
+    loc_vars = function(_, info_queue, _)
+        local idiot_c = G.GAME.soe_last_sold_joker and G.P_CENTERS[G.GAME.soe_last_sold_joker] or nil
+        local last_sold_joker = idiot_c and localize({type = 'name_text', key = idiot_c.key, set = idiot_c.set}) or localize('k_none')
 
-        if not (not fool_c or fool_c.name == 'The Fool') then
-            info_queue[#info_queue + 1] = fool_c
-        end
+        info_queue[#info_queue+1] = idiot_c
 
         local main_end = {
             {
                 n = G.UIT.C,
-                config = { align = "bm", padding = 0.02 },
+                config = {align = 'bm', padding = 0.02},
                 nodes = {
                     {
                         n = G.UIT.C,
-                        config = { align = "m", colour = colour, r = 0.05, padding = 0.05 },
+                        config = {align = 'm', colour = not idiot_c and G.C.RED or G.C.GREEN, r = 0.05, padding = 0.05},
                         nodes = {
-                            { n = G.UIT.T, config = { text = ' ' .. last_tarot_planet .. ' ', colour = G.C.UI.TEXT_LIGHT, scale = 0.3, shadow = true } },
+                            {n = G.UIT.T, config = {text = ' ' .. last_sold_joker .. ' ', colour = G.C.UI.TEXT_LIGHT, scale = 0.3, shadow = true}},
                         }
                     }
                 }
             }
         }
 
-        return { vars = { last_tarot_planet }, main_end = main_end }
+        return {vars = {last_sold_joker}, main_end = main_end}
     end,
     use = function(self, card, area, copier)
         G.E_MANAGER:add_event(Event({
@@ -83,9 +81,11 @@ SMODS.Consumable {
     key = 'governor',
     set = 'soe_Vice',
     atlas = 'Synonyms',
+    unlocked = true,
+    discovered = true,
     pos = { x = 4, y = 0 },
     soe_alternative = 'c_emperor',
-    config = {extra = {key = ""}},
+    config = {extra = {}},
     use = function(self, card, area, copier)
         for i = 1, 2 do
             G.E_MANAGER:add_event(Event({
@@ -115,13 +115,15 @@ SMODS.Consumable {
     key = 'energy',
     set = 'soe_Vice',
     atlas = 'Synonyms',
+    unlocked = true,
+    discovered = true,
     soe_alternative = 'c_strength',
     pos = { x = 1, y = 1 },
-    config = { max_highlighted = 1, extra = { jokeradd = 1 } },
-    loc_vars = function(self, info_queue, card)
-        return { vars = { card.ability.max_highlighted, card.ability.extra.jokeradd, card.ability.max_highlighted ~= 1 and 'Jokers' or 'Joker' } }
+    config = {extra = {max_highlighted = 1}},
+    loc_vars = function(_, _, card)
+        return {vars = {card.ability.extra.max_highlighted, card.ability.max_highlighted == 1 and 'Joker' or 'Jokers'}}
     end,
-    use = function(self, card, area, copier)
+    use = function(_, card)
         G.E_MANAGER:add_event(Event({
             trigger = 'after',
             delay = 0.4,
@@ -131,7 +133,7 @@ SMODS.Consumable {
                 return true
             end
         }))
-        for i = 1, #G.jokers.highlighted do
+        for i=1, #G.jokers.highlighted do
             local percent = 1.15 - (i - 0.999) / (#G.jokers.highlighted - 0.998) * 0.3
             G.E_MANAGER:add_event(Event({
                 trigger = 'after',
@@ -150,7 +152,7 @@ SMODS.Consumable {
                 trigger = 'after',
                 delay = 0.1,
                 func = function()
-                    SEALS.modify_joker_values(G.jokers.highlighted[i], {["+"] = card.ability.extra.jokeradd}, {x_mult = 1, x_chips = 1, h_size = 0, extra_value = true, cry_prob = true, d_size = 0})
+                    SEALS.modify_joker_values(G.jokers.highlighted[i], {['+'] = 1})
                     return true
                 end
             }))
@@ -180,8 +182,8 @@ SMODS.Consumable {
     end,
     can_use = function(self, card)
         if G.jokers and #G.jokers.highlighted > 0 and #G.jokers.highlighted <= card.ability.max_highlighted then
-            for k, v in pairs(G.jokers.highlighted) do
-                if v.config.center.immutable then
+            for _, v in ipairs(G.jokers.highlighted) do
+                if v.config.center.immutable or v.ability.set ~= "Joker" then
                     return false
                 end
             end
@@ -196,6 +198,8 @@ SMODS.Consumable {
     set = 'soe_Vice',
     atlas = 'Synonyms',
     pos = { x = 2, y = 1 },
+    unlocked = true,
+    discovered = true,
     soe_alternative = 'c_hanged_man',
     config = {max_highlighted = 2, min_highlighted = 1},
     loc_vars = function (self, info_queue, card)
@@ -216,7 +220,9 @@ SMODS.Consumable {
             delay = 0.2,
             func = function()
                 for k, v in pairs(G.jokers.highlighted) do
+                    v.destroyed_by_gallowsbird = true
                     v:soe_no_touching2()
+                    SEALS.event(function() v.destroyed_by_gallowsbird = nil return true end)
                 end
                 return true
             end
@@ -307,5 +313,31 @@ SMODS.Consumable{
             end
         }))
         delay(0.5)
+    end,
+}
+
+SMODS.Consumable{
+    key = 'jury',
+    set = 'soe_Vice',
+    atlas = 'Synonyms',
+    pos = G.P_CENTERS.c_judgement.pos,
+    unlocked = true,
+    discovered = true,
+    soe_alternative = 'c_judgement',
+    can_use = function()
+        return G.jokers and #G.jokers.cards < G.jokers.config.card_limit
+    end,
+    use = function(_, card)
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.4,
+            func = function()
+                play_sound('timpani')
+                SMODS.add_card({set = 'soe_SynonymJokers'})
+                card:juice_up(0.3, 0.5)
+                return true
+            end
+        }))
+        delay(0.6)
     end,
 }

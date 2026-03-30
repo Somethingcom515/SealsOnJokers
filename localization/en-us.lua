@@ -8,6 +8,40 @@ return {
                     "have seals",
                 }
             },
+            b_soe_merged = {
+                name = 'Merged Deck',
+                text = {
+                    'All cards in shop',
+                    'are {C:attention}merged{} with another',
+                    'card of the same set',
+                    '{C:attention}Merged Cards{} cost {C:attention}20%{} less'
+                }
+            },
+            b_soe_inverse = {
+                name = 'Inversed Deck',
+                text = {
+                    'Jokers and hand',
+                    'are {C:attention}inversed{}',
+                    'Hand {C:attention}discards{} itself',
+                    'every hand'
+                }
+            },
+            b_soe_synonym = {
+                name = 'Synonym Deck',
+                text = {
+                    'Every other consumable in',
+                    'the shop is {C:attention}replaced{}',
+                    'with a {X:soe_synonym_gradient,C:white}Synonym{} consumable'
+                }
+            },
+            b_soe_true = {
+                name = 'True Deck',
+                text = {
+                    'Has the effects',
+                    'of all {C:attention}Seals On Everything{}',
+                    'decks and sleeves'
+                }
+            },
 			b_cry_sl_deck = {
 				name = "Seal Deck",
 				text = {
@@ -25,11 +59,19 @@ return {
                 name = 'The Seal',
                 text = {
                     'All cards are face down',
-                    'Seals show on the back of cards during this round',
+                    'Seals show on the back of cards during this blind',
                 }
             },
         },
-        Edition={},
+        Edition={
+            e_soe_frozen = {
+                name = 'Frozen',
+                text = {
+                    '{C:attention}Values{} on this card',
+                    '{C:attention}cannot{} be changed'
+                }
+            }
+        },
         Enhanced={},
         Joker={
             j_soe_stonecardjoker = {
@@ -41,8 +83,8 @@ return {
             j_soe_sealjoker = {
                 name = 'Seal',
                 text={
-                    "Cards can have {s:3,C:soe_infinity}infinite{}",
-                    "seals"
+                    "Cards can have",
+                    "{E:soe_circle,C:soe_infinity}infinite{} seals"
                 },
             },
             j_soe_sealjoker2 = {
@@ -50,7 +92,7 @@ return {
                 text={
                     "Cards can have {X:soe_infinity,C:white}Unlimited{} amounts",
                     "of all {C:attention}properties{}",
-                    "{C:inactive}(Expect more than average lag!){}"
+                    --"{C:inactive}(Expect more than average lag!){}"
                 },
             },
             j_soe_infinityred = {
@@ -58,21 +100,6 @@ return {
                 text={
                     "Every time a card triggers",
                     "put a {C:red}Red Seal{} on it",
-                }
-            },
-            j_soe_infinitypurple = {
-                name = 'Infinity Purple',
-                text={
-                    "Seals are {C:attention}forcetriggered{}",
-                    "when the card it's on is scored",
-                }
-            },
-            j_soe_infinitygold = {
-                name = 'Infinity Gold',
-                text={
-                    "Cards played and held in hand along with jokers",
-                    "give {X:money,C:white}#1#*n{} when scored,",
-                    "where {C:attention}n{} is the amount of seals that card has",
                 }
             },
             j_soe_infinityblue = {
@@ -83,6 +110,29 @@ return {
                     "as a {C:dark_edition}Negative{} Joker"
                 }
             },
+            j_soe_infinitygold = {
+                name = 'Infinity Gold',
+                text={
+                    "Cards played and held in hand along with jokers",
+                    "give {X:money,C:white}#1#*n${} when scored,",
+                    "where {C:attention}n{} is the amount of seals that card has",
+                }
+            },
+            j_soe_infinitypurple = {
+                name = 'Infinity Purple',
+                text={
+                    "Seals are {C:attention}forcetriggered{}",
+                    "when the card it's on is scored",
+                }
+            },
+            j_soe_infinityomega = {
+                name = 'Infinity Omega',
+                text={
+                    '{C:attention}ALL{} cards count as {X:dark_edition,C:white}EVERYTHING{}',
+                    '{C:inactive}(Ranks, Suits, Seals, Enhancements, Editions, Stickers and Jokers)',
+                    '{C:inactive}(Will cause lag){}'
+                }
+            },
             j_soe_extralife = {
                 name = 'Extra Life',
                 text={
@@ -91,9 +141,10 @@ return {
             },
             j_soe_unorganizedjoker = {
                 name = 'Unorganized Joker',
-                text={
-                    "If a card has a property that was not meant for that card,",
-                    "it gives {X:mult,C:white}X#1#{} Mult",
+                text = {
+                    'If a card has a {C:attention}modifier{}',
+                    'that was not meant for that card,',
+                    'it gives {X:mult,C:white}X#1#{} Mult',
                 }
             },
             j_soe_seeder = {
@@ -121,10 +172,18 @@ return {
             },
             j_soe_c_talismanjoker = {
                 name = 'Talisman Joker',
-                text={
-                    "Gives a random scoring card",
-                    "A {C:attention}Gold Seal{}",
-                    "{C:inactive}(if possible){}",
+                text = {
+                    'Gives a random scoring card',
+                    'A {C:attention}Gold Seal{}',
+                    '{C:inactive}(if possible){}',
+                }
+            },
+            j_soe_c_souljoker = {
+                name = 'Soul Joker',
+                text = {
+                    'Sell this card to add',
+                    'a {C:legendary,E:1}Legendary{} Joker',
+                    'to your deck',
                 }
             },
             j_soe_thinkingemoji = {
@@ -144,9 +203,10 @@ return {
                 },
             },
             j_soe_ascendedjoker = {
-                name = 'Every Joker',
+                name = 'Ascended Joker',
                 text={
-                    "All at the same time",
+                    'Counts as {C:attention}every{}',
+                    'Vanilla Joker'
                 }
             },
             j_soe_someinone = {
@@ -203,15 +263,111 @@ return {
                     "A {C:dark_edition}NEW{} fusion of",
                     "{C:attention}multiple{} Jokers"
                 }
+            },
+            j_soe_jokester = {
+                name = 'Jokester',
+                text = {
+                    '{C:money,s:1.1}$#1#{}'
+                }
+            },
+            j_soe_avariciousjokester = {
+                name = 'Avaricious Jokester',
+                text = {
+                    'Each {C:diamonds}Diamond{}',
+                    'held in hand',
+                    'gives {C:money}$#1#{}'
+                }
+            },
+            j_soe_concupiscentjokester = {
+                name = 'Concupiscent Jokester',
+                text = {
+                    'Each {C:hearts}Heart{}',
+                    'held in hand',
+                    'gives {C:money}$#1#{}'
+                }
+            },
+            j_soe_infuriatedjokester = {
+                name = 'Infuriated Jokester',
+                text = {
+                    'Each {C:spades}Spade{}',
+                    'held in hand',
+                    'gives {C:money}$#1#{}'
+                }
+            },
+            j_soe_edaciousjokester = {
+                name = 'Edacious Jokester',
+                text = {
+                    'Each {C:clubs}Club{}',
+                    'held in hand',
+                    'gives {C:money}$#1#{}'
+                }
+            },
+            j_soe_apophenia = {
+                name = 'Apophenia',
+                text = {
+                    'All {C:attention}face{} cards are',
+                    '{C:attention}additionally{} considered',
+                    '{C:attention}non-face{} cards',
+                    --'{C:inactive}(May cause lag){}'
+                }
+            },
+            j_soe_ballnote = {
+                name = 'Ball Note',
+                text = {
+                    '{C:soe_unusual}Unusual{} Jokers',
+                    'are {C:attention}retriggered{}'
+                }
+            },
+            j_soe_water = {
+                name = 'Water',
+                text = {
+                    'Sell this card to',
+                    'give the {C:attention}Joker{} to the right',
+                    'the {C:dark_edition}Frozen{} edition'
+                }
+            },
+            j_soe_cheerfulexpression = {
+                name = 'Cheerful Expression',
+                text = {
+                    'Each {C:attention}non-face{}',
+                    'held in hand',
+                    'gives {C:money}$#1#{}'
+                }
+            },
+            j_soe_redfabric = {
+                name = 'Redfabric',
+                text = {
+                    '{C:attention}Permanently{} stores ability',
+                    'of {C:attention}Joker{} to the right',
+                    'at end of round',
+                    '{C:inactive}(Does not lose removed Jokers){}'
+                }
+            },
+            j_soe_what = {
+                name = 'What? Only 7s?',
+                text = {
+                    'This Joker gains',
+                    '{C:green}+#1#{} to listed {C:green}probabilities{}',
+                    'every {C:attention}#2#{C:inactive} [#3#]{} {C:attention}7s{} scored',
+                    '{C:inactive}(Currently {C:green}+#4# {C:inactive}probabilities)'
+                }
+            },
+            j_soe_mindassault = {
+                name = 'Mindassault',
+                text = {
+                    'Copies the ability of',
+                    'all played and scored {C:attention}cards{}'
+                }
             }
         },
         Other={
             soe_sealseal_seal = {
                 name = 'Seal Seal',
                 text = {
-                    'If this card has a second seal,',
-                    'Spread it to adjacent cards before scoring',
-                    'Otherwise, {C:mult}+#1#{} Mult'
+                    'This card can have',
+                    '{C:attention}infinite{} seals,',
+                    '{C:attention}Retrigger{} all other seals',
+                    'on this card'
                 },
             },
             soe_rainbowseal_seal = {
@@ -231,7 +387,22 @@ return {
             soe_negativeseal_seal = {
                 name = 'Negative Seal',
                 text = {
-                    'This card {C:attention}ignores{} the selection limit,',
+                    'This card {C:attention}ignores{} the selection limit'
+                },
+            },
+            soe_negativeseal_seal_joker = {
+                name = 'Negative Seal',
+                text = {
+                    'If a {C:attention}hand{} is played',
+                    'whilst this Joker is {C:attention}selected{},',
+                    'it is {C:attention}added{} to the played hand'
+                },
+            },
+            soe_negativeseal_seal_consumeable = {
+                name = 'Negative Seal',
+                text = {
+                    'You can select {C:attention}infinite{} cards when',
+                    'only this {C:attention}consumable{} is selected'
                 },
             },
             soe_carmineseal_seal = {
@@ -259,6 +430,13 @@ return {
                 name = 'Foil Seal',
                 text = {
                     '{C:dark_edition}Editions{} on this card',
+                    'also happen when in {C:attention}hand{}',
+                },
+            },
+            soe_foilseal_seal_joker = {
+                name = 'Foil Seal',
+                text = {
+                    '{C:dark_edition}Editions{} on this card',
                     'happen when {C:attention}triggered{} instead',
                 },
             },
@@ -276,19 +454,52 @@ return {
                     "when this card is {C:attention}retriggered{}"
                 },
             },
-            red_seal_joker = {
-                name="Red Seal",
-                text={
-                    "Retrigger this",
-                    "Joker {C:attention}1{} time",
+            soe_upgradedredseal_seal = {
+                name = 'Upgraded Red Seal',
+                text = {
+                    'Rescore this',
+                    'card {C:attention}1{} time',
                 },
             },
-            purple_seal={
-                name="Purple Seal",
+            soe_upgradedblueseal_seal = {
+                name = 'Upgraded Blue Seal',
+                text = {
+                    'Creates a {C:dark_edition}Negative{} {C:planet}Planet{} card',
+                    'of the final played {C:attention}poker hand{}',
+                    'of round and gives it a {C:red}Red{}',
+                    'and {C:attention}Gold Seal{} if {C:attention}held{} in hand'
+                },
+            },
+            soe_upgradedgoldseal_seal = {
+                name = 'Upgraded Gold Seal',
+                text = {
+                    '{X:money,C:white}$X#1#{} when this',
+                    'card is played',
+                    'and scores',
+                },
+            },
+            soe_upgradedpurpleseal_seal = {
+                name = 'Upgraded Purple Seal',
+                text = {
+                    'Creates a {C:dark_edition}Negative{} {C:tarot}Tarot{} card',
+                    'and gives it a {C:red}Red{}',
+                    'and {C:attention}Gold Seal{} when {C:attention}discarded'
+                },
+            },
+            soe_upgradedsoe_rainbowsealseal_seal = {
+                name = 'Omega Seal',
+                text = {
+                    'This card counts as {X:dark_edition,C:white}EVERYTHING{}',
+                    '{C:inactive}(Ranks, Suits, Seals, Enhancements, Editions, Stickers and Jokers)',
+                    'This seal {C:attention}cannot{} be removed or replaced',
+                    '{C:inactive}(May cause lag){}'
+                },
+            },
+            red_seal_joker = {
+                name = 'Red Seal',
                 text={
-                    "Creates a {C:tarot}Tarot{} card",
-                    "when {C:attention}discarded",
-                    "{C:inactive}(Must have room)",
+                    'Retrigger this',
+                    'Joker {C:attention}1{} time',
                 },
             },
             purple_seal_joker = {
@@ -299,14 +510,6 @@ return {
                     "{C:inactive}(Must have room)",
                 },
             },
-            gold_seal={
-                name="Gold Seal",
-                text={
-                    "Earn {C:money}$3{} when this",
-                    "card is played",
-                    "and scores",
-                },
-            },
             gold_seal_joker = {
                 name="Gold Seal",
                 text={
@@ -315,7 +518,7 @@ return {
                 },
             },
             blue_seal_joker = {
-                name="Blue Seal",
+                name = 'Blue Seal',
                 text={
                     "Creates the {C:planet}Planet{} card",
                     "for final played {C:attention}poker hand{}",
@@ -351,30 +554,100 @@ return {
                 name = "Plasma Sleeve",
                 text = G.localization.descriptions.Back["b_plasma"].text
             },
-            sealevolve = {
-                name = "Seal Evolve",
+            p_soe_synonym_normal = {
+                name = 'Synonym Pack',
                 text = {
-                    "If all Cards in deck have an enhancement, edition",
-                    "and 2 or more seals, evolve into {X:soe_infinity,C:white}Seal{} {X:soe_infinity,C:white}2{}",
+                    'Choose {C:attention}#1#{} of up to',
+                    '{C:attention}#2# {X:soe_synonym_gradient,C:white}Synonym{} cards to',
+                    'be used/selected immediately',
+                },
+            },
+            p_soe_synonym_jumbo = {
+                name = 'Jumbo Synonym Pack',
+                text = {
+                    'Choose {C:attention}#1#{} of up to',
+                    '{C:attention}#2# {X:soe_synonym_gradient,C:white}Synonym{} cards to',
+                    'be used/selected immediately',
+                },
+            },
+            p_soe_synonym_mega = {
+                name = 'Mega Synonym Pack',
+                text = {
+                    'Choose {C:attention}#1#{} of up to',
+                    '{C:attention}#2# {X:soe_synonym_gradient,C:white}Synonym{} cards to',
+                    'be used/selected immediately',
+                },
+            },
+            soe_epsilon = {
+                name = "Epsilon",
+                text = {
+                    "{X:dark_edition,C:white}CANNOT{} be destroyed or sold",
+                    "{C:inactive,s:0.4}except for the gallows bird{}",
+                    "{X:dark_edition,C:white}CANNOT{} be removed"
                 }
             },
-            p_soe_synonym_normal = {
-                name = "Synonym Pack",
+            dd_akyrs_seals_on_everything_ability = {
+                name = 'Seals On Everything Ability',
                 text = {
-                    "Choose {C:attention}#1#{} of up to",
-                    "{C:attention}#2# {X:soe_synonym_gradient,C:white}Synonym{} cards to",
-                    "be used immediately",
-                },
+                    'All cards are considered as',
+                    'having {C:red}Red{} and {C:attention}Gold Seals{}'
+                }
+            },
+            soe_seal_evolve = {
+                name = 'Seal Evolve',
+                text = {
+                    'If all cards in deck have an {C:attention}enhancement{}, {C:dark_edition}edition{}',
+                    'and 2 or more {C:attention}seals{}, evolve into {X:soe_infinity,C:white}Seal{} {X:soe_infinity,C:white}2{}',
+                }
+            },
+            soe_detach = {
+                name = 'Detached Seals',
+                text = {
+                    '{C:attention}Detached{} seals have',
+                    'different {C:attention}permanent{} effects',
+                    '{C:inactive}(Only works for vanilla seals)'
+                }
+            },
+            soe_merged_cards = {
+                name = 'Merged Cards',
+                text = {
+                    '{C:attention}Triple{} click this card',
+                    'to see all {C:attention}merged{} cards'
+                }
+            },
+            soe_redfabric = {
+                name = 'Redfabric',
+                text = {
+                    '{C:attention}Triple{} click this card',
+                    'to see all {C:attention}copied{} cards'
+                }
+            },
+            soe_upgrade_seal = {
+                name = 'Upgrade Seal',
+                text = {
+                    'If this card has a {C:red}Red Seal{}',
+                    'and you get the same seal {C:attention}twice{}',
+                    'it will upgrade',
+                    '{C:inactive}(Only works for vanilla seals and rainbow seal){}'
+                }
+            },
+            soe_seal_fuse = {
+                name = 'Seal Fuse',
+                text = {
+                    'This card can be fused with',
+                    '{C:red}Infinity Red{}, {C:blue}Infinity Blue{}, {C:attention}Infinity Gold{}',
+                    'and {C:purple}Infinity Purple{} to create {V:1}Infinity Omega{}'
+                }
             }
         },
         Planet={
-            c_soe_demjoker={
-                name="Dem Joker",
+            c_soe_planeter={
+                name = 'Planeter',
 				text = {
-					"{S:0.8}({S:0.8,V:1}lvl.#2#{S:0.8}){} Level up",
-					"{C:attention}#1#",
-					"{C:mult}+#3#{} Mult and",
-					"{C:chips}+#4#{} chips",
+					'{S:0.8}({S:0.8,V:1}lvl.#2#{S:0.8}){} Level up',
+					'{C:attention}#1#',
+					'{C:mult}+#3#{} Mult and',
+					'{C:chips}+#4#{} chips',
 				},
             },
         },
@@ -435,60 +708,55 @@ return {
                     'to a random consumable',
                 }
             },
-            c_soe_dejavuqqq = {
-                name = 'DEJA VU???',
+            c_soe_tdejince = {
+                name = 'TDejlnce',
                 text = {
-                    'Add a {C:red}Red Seal{}',
-                    'to the blind',
+                    'Add a {C:attention}random{} seal',
+                    'to {C:attention}1{} selected',
+                    'card in your hand',
                 }
-            },
-            c_soe_allinone = {
-                name = 'ALL IN ONE???',
-                text = {
-                    "UNBELIEVEABLE"
-                }
-            },
+            }
         },
         Stake={},
         Tag={},
         Tarot={
             c_soe_devilq = {
-                name = 'Devil?',
+                name = 'The Devil?',
                 text = {
                     'Add the {C:attention}Gold{} Enhancement',
                     'to a random joker',
                 }
             },
             c_soe_towerq = {
-                name = 'Tower?',
+                name = 'The Tower?',
                 text = {
                     'Add the {C:attention}Stone{} Enhancement',
                     'to a random joker',
                 }
             },
             c_soe_chariotq = {
-                name = 'Chariot?',
+                name = 'The Chariot?',
                 text = {
                     'Add the {C:attention}Steel{} Enhancement',
                     'to a random joker',
                 }
             },
             c_soe_empressq = {
-                name = 'Empress?',
+                name = 'The Empress?',
                 text = {
                     'Add the {C:attention}Mult{} Enhancement',
                     'to a random joker',
                 }
             },
             c_soe_hierophantq = {
-                name = 'Hierophant?',
+                name = 'The Hierophant?',
                 text = {
                     'Add the {C:attention}Bonus{} Enhancement',
                     'to a random joker',
                 }
             },
             c_soe_magicianq = {
-                name = 'Magician?',
+                name = 'The Magician?',
                 text = {
                     'Add the {C:attention}Lucky{} Enhancement',
                     'to a random joker',
@@ -563,24 +831,57 @@ return {
         },
         Sleeve = {
             sleeve_soe_seal = {
-                name = "Seal Sleeve",
+                name = 'Seal Sleeve',
                 text = {
                     "All cards in shop",
                     "have seals",
                 }
             },
             sleeve_soe_seal_extra = {
-                name = "Seal Sleeve",
+                name = 'Seal Sleeve',
                 text = {
-                    "Cards can have {C:attention}2{} Seals",
+                    'Start with the {C:attention}Seal 2{} Joker'
                 }
             },
+            sleeve_soe_merged = {
+                name = "Merged Sleeve",
+                text = {
+                    'All cards in shop',
+                    'are {C:attention}merged{} with another',
+                    'card of the same set',
+                    '{C:attention}Merged Cards{} cost {C:attention}20%{} less'
+                }
+            },
+            sleeve_soe_merged_extra = {
+                name = 'Merged Sleeve',
+                text = {
+                    '{X:soe_synonym_gradient,C:white}EVERYTHING{} is {C:attention}merged{}',
+                    'with another object',
+                    'of the same type'
+                }
+            },
+            sleeve_soe_inverse = {
+                name = 'Inversed Sleeve',
+                text = {
+                    'Jokers and hand',
+                    'are {C:attention}inversed{}',
+                    'Hand {C:attention}discards{} itself',
+                    'every hand'
+                }
+            },
+            --[[
+            sleeve_soe_inverse_extra = {
+                name = 'Inversed Sleeve',
+                text = {
+                    'Start at Ante 8 and end at Ante 1'
+                }
+            },
+            ]]
             sleeve_soe_redseal = {
                 name = "Red Seal",
                 text = {
                     "Effects of this deck",
                     "happen twice",
-                    "{C:inactive}(#1#){}"
                 }
             },
             sleeve_soe_goldseal = {
@@ -595,7 +896,7 @@ return {
 			BakeryCharm_soe_sealcharm={
 				name = "Seal Charm",
                 text = {
-                    "Seal effects are doubled"
+                    "Seal effects are {C:attention}retriggered{}"
                 }
 			},
 		},
@@ -670,7 +971,7 @@ return {
         },
         soe_Vice = {
             c_soe_idiot = {
-                name="The Idiot",
+                name = 'The Idiot',
 				text = {
                     "Creates the last",
                     "{C:attention}Joker{} card",
@@ -678,43 +979,51 @@ return {
 				},
             },
             c_soe_governor = {
-                name="The Governor",
-                text={
-                    "Creates a {X:soe_synonym_gradient,C:white}Synonym{} card",
-                    "and its original",
-                    "{C:inactive}(Must have room)",
+                name = 'The Governor',
+                text = {
+                    'Creates a {X:soe_synonym_gradient,C:white}Synonym{}',
+                    'consumable and it\'s original',
+                    '{C:inactive}(Must have room)',
                 },
             },
             c_soe_energy = {
-                name="Energy",
-                text={
-                    "Increases all values of",
-                    "up to {C:attention}#1#{} selected",
-                    "#3# by {C:attention}#2#{}",
-                    "{C:inactive}(May cause issues){}"
+                name = 'Energy',
+                text = {
+                    'Increases all values of',
+                    'up to {C:attention}#1#{} selected',
+                    '#3# by {C:attention}1{}',
+                    --'{C:inactive}(May cause issues){}'
                 },
             },
             c_soe_gallowsbird = {
-                name="The Gallows Bird",
-                text={
-                    "Destroys up to",
-                    "{C:attention}#1#{} selected Jokers",
-                    "{C:inactive}(Bypasses{} {X:dark_edition,C:soe_synonym_gradient}LITERALLY{} {X:dark_edition,C:soe_synonym_gradient}EVERYTHING{}{C:inactive}){}"
+                name = 'The Gallows Bird',
+                text = {
+                    'Destroys up to',
+                    '{C:attention}#1#{} selected Jokers',
+                    '{C:inactive}(Bypasses{} {C:attention}everything{}{C:inactive}){}'
                 },
             },
             c_soe_murder = {
                 name = 'Murder',
                 text = {
-                    "Select {C:attention}#1#{} Jokers,",
-                    "convert the {C:attention}left{} Joker",
-                    "into the {C:attention}right{} Joker",
-                    "{C:inactive}(Drag to rearrange)",
+                    'Select {C:attention}#1#{} Jokers,',
+                    'convert the {C:attention}left{} Joker',
+                    'into the {C:attention}right{} Joker',
+                    '{C:inactive}(Drag to rearrange)',
+                }
+            },
+            c_soe_jury = {
+                name = 'Jury',
+                text = {
+                    'Creates a random',
+                    '{X:soe_synonym_gradient,C:white}Synonym{} {C:attention}Joker{}',
+                    '{C:inactive}(Must have room)',
                 }
             },
         },
         soe_Orbital = {
             c_soe_degrade={
-                name="Degrade",
+                name = 'Degrade',
 				text = {
 					"{S:0.8}({S:0.8,V:1}lvl.#2#{S:0.8}){} Level up",
 					"{C:attention}#1#{}",
@@ -727,9 +1036,8 @@ return {
             c_soe_sacrifice = {
                 name = 'Sacrifice',
                 text = {
-                    "Destroys {C:attention}#1#{} random",
-                    "Jokers,",
-                    "gain {C:money}$#2#",
+                    'Destroys {C:attention}#1#{} random Jokers,',
+                    'gain {C:money}$#2#{} for each Joker {C:attention}destroyed{}'
                 },
             },
             c_soe_decimal = {
@@ -761,6 +1069,13 @@ return {
                     '{C:attention}Detach{} a seal',
                     'from any {C:attention}1{} selected',
                     'card'
+                }
+            },
+            c_soe_cannotfinditemwithkeyc_deja_vu = {
+                name = 'Cannot find item with key: \'c_deja_vu\'',
+                text = {
+                    'Merge {C:attention}any{}',
+                    '{C:attention}#1#{} selected cards'
                 }
             },
         },
@@ -808,7 +1123,11 @@ return {
         challenge_names={},
         collabs={},
         dictionary={
-            k_soe_infinity = "Infinity",
+            k_soe_infinity = 'Infinity',
+            k_soe_basic = 'Basic',
+            k_soe_unusual = 'Unusual',
+            k_soe_unique = 'Unique',
+            k_soe_fabled = 'Fabled',
 
             k_following_joker_hands = "Contributes to the following Joker Hands:",
             k_joker_hands = "Joker Hands",
@@ -823,6 +1142,7 @@ return {
             k_life_used = "Life Used!",
             
             soe_skill_tree_jokerupgrades = "Joker Upgrades",
+            b_fuse = 'FUSE'
         },
         high_scores={},
         labels={
@@ -836,18 +1156,33 @@ return {
             soe_foilseal_seal = 'Foil Seal',
             soe_holoseal_seal = 'Holographic Seal',
             soe_rustyseal_seal = 'Rusty Seal',
+            soe_upgradedredseal_seal = 'Upgraded Red Seal',
+            soe_upgradedblueseal_seal = 'Upgraded Blue Seal',
+            soe_upgradedgoldseal_seal = 'Upgraded Gold Seal',
+            soe_upgradedpurpleseal_seal = 'Upgraded Purple Seal',
+            soe_upgradedsoe_rainbowsealseal_seal = 'Omega Seal',
 
-            k_soe_infinity = "Infinity",
+            k_soe_infinity = 'Infinity',
+            k_soe_basic = 'Basic',
+            k_soe_unusual = 'Unusual',
+            k_soe_unique = 'Unique',
+            k_soe_fabled = 'Fabled',
+
+            soe_frozen = 'Frozen',
+
+            soe_epsilon = 'Epsilon'
         },
         poker_hand_descriptions = {
-            soe_joker_central = {"5 Jokers"},
-            soe_nil = {"nil"},
-            soe_seal_flush = {"5 cards that share the same seal"},
+            soe_joker_central = {'5 Jokers'},
+            soe_nil = {'nil'},
+            soe_seal_flush = {'5 cards that share the same seal'},
+            soe_joker_flush = {'5 Jokers that share the same rarity'},
         },
         poker_hands = {
-            soe_joker_central = "Joker Central",
-            soe_nil = "nil",
-            soe_seal_flush = "Seal Flush",
+            soe_joker_central = 'Joker Central',
+            soe_nil = 'nil',
+            soe_seal_flush = 'Seal Flush',
+            soe_joker_flush = 'Joker Flush'
         },
         soe_joker_hands = {
             soe_simple_jimbo = "A Simple Jimbo",
