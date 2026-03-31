@@ -3371,16 +3371,10 @@ function Card:calculate_seal(context)
             end
         end
         if seal == 'Red' and context.retrigger_joker_check and context.other_card == self and not context.other_context.retrigger_joker then
-            return {
-                repetitions = 1,
-                soe_seal_bypass_retrigger_restrictions = true
-            }
+            return {repetitions = 1, soe_seal_bypass_retrigger_restrictions = true}
         end
         if seal == 'Gold' and ((context.post_trigger and context.other_card == self) or context.forcetrigger) then
-            return {
-                dollars = 3,
-                message_card = self
-            }
+            return {dollars = 3, message_card = self}
         end
         if seal == 'Blue' and ((#G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit and context.end_of_round and context.main_eval) or context.forcetrigger) then
             local card_type = 'Planet'
@@ -4188,7 +4182,7 @@ local oldgamestartrun = Game.start_run
 function Game:start_run(args)
     G.soe_indexable_cards = {}
     G.soe_check_eternal_cache = {}
-    G.soe_quantum_context_cache = {Gold = {'main_scoring'}, Blue = {'playing_card_end_of_round'}}
+    G.soe_quantum_context_cache = {Gold = {'main_scoring', 'post_trigger'}, Blue = {'end_of_round'}}
     G.soe_cachedsavedobjects = {}
     G.soe_old_editions = {}
     oldgamestartrun(self, args)

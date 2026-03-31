@@ -321,7 +321,7 @@ function SEALS.calculate_quantum_seals(card, effects, context)
     for _, k in ipairs(extra_seals_list) do
         local center = G.P_SEALS[k]
         local passed
-        if (k == 'Gold' or k == 'Blue' or center.original_mod) and center.calculate then
+        if (k == 'Gold' or k == 'Blue') or center.original_mod and center.calculate then
             cache_context(card, center)
             passed = G.soe_quantum_context_cache[k] == true
             if not passed then
