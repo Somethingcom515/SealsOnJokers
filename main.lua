@@ -2890,11 +2890,7 @@ SMODS.Enhancement{
     always_scores = true,
     no_suit = true,
     no_rank = true,
-    soe_is_joker_enhancement = true,
-    weight = 0,
-    in_pool = function()
-        return false
-    end
+    soe_is_joker_enhancement = true
 }
 
 SMODS.Enhancement{
@@ -2918,10 +2914,6 @@ SMODS.Enhancement{
     no_suit = true,
     no_rank = true,
     soe_is_joker_enhancement = true,
-    weight = 0,
-    in_pool = function()
-        return false
-    end,
     calculate = function(_, card, context)
         if context.cardarea == G.play and context.main_scoring and next(context.poker_hands[card.ability.extra.type]) then
             return {mult = card.ability.extra.mult}
@@ -2950,10 +2942,6 @@ SMODS.Enhancement{
     no_suit = true,
     no_rank = true,
     soe_is_joker_enhancement = true,
-    weight = 0,
-    in_pool = function()
-        return false
-    end,
     calculate = function(_, card, context)
         if context.main_scoring and context.cardarea == G.play and next(context.poker_hands[card.ability.extra.type]) then
             return {mult = card.ability.extra.mult}
@@ -2977,10 +2965,6 @@ SMODS.Enhancement{
     always_scores = true,
     soe_is_joker_enhancement = true,
     soe_blueprint = true,
-    weight = 0,
-    in_pool = function()
-        return false
-    end,
     calculate = function(_, card, context)
         if card.area then
             local other_card = card.area.cards[card.rank+1]
@@ -3043,10 +3027,6 @@ SMODS.Enhancement{
     always_scores = true,
     soe_is_joker_enhancement = true,
     soe_blueprint = true,
-    weight = 0,
-    in_pool = function()
-        return false
-    end,
     calculate = function(_, card, context)
         if card.area then
             local other_card = card.area.cards[1]
@@ -6612,7 +6592,7 @@ SMODS.Joker{
         return {vars = {card.ability.extra.xmult}}
     end,
     calculate = function(_, card, context)
-        if (context.other_joker and (context.other_joker:get_seal() or (context.other_joker.ability.soe_legalenhancements and next(context.other_joker.ability.soe_legalenhancements)) or context.other_joker.ability.legallysleeve)) or (context.other_consumeable and context.other_consumeable:get_seal()) then
+        if context.other_main and (context.other_main:get_seal() or (context.other_joker.ability.soe_legalenhancements and next(context.other_joker.ability.soe_legalenhancements)) or context.other_joker.ability.legallysleeve) then
             return {x_mult = card.ability.extra.xmult}
         end
         if context.individual then
@@ -7699,7 +7679,7 @@ local oldsmodscalceff = SMODS.calculate_effect
 SMODS.calculate_effect = function(effect, scored_card, ...)
     if G.soe_truer_card and G.soe_truer_card[scored_card] then
         return oldsmodscalceff(effect, G.soe_truer_card[scored_card], ...)
-    elseif scored_card.soe_realcard then
+    elseif scored_card and scored_card.soe_realcard then
         return oldsmodscalceff(effect, scored_card.soe_realcard, ...)
     elseif effect.soe_true_card then
         return oldsmodscalceff(effect, effect.soe_true_card, ...)

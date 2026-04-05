@@ -1028,7 +1028,7 @@ return {
 					"{S:0.8}({S:0.8,V:1}lvl.#2#{S:0.8}){} Level up",
 					"{C:attention}#1#{}",
 					"{C:mult}+#3#{} Mult and",
-					"{C:chips}+#4#{} chip#<s>4#",
+					"{C:chips}+#4#{} chips",
 				},
             },
         },

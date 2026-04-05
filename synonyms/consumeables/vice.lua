@@ -18,11 +18,10 @@ SMODS.ConsumableType{
 
 local oldsellcard = Card.sell_card
 function Card:sell_card()
-    local g = oldsellcard(self)
+    oldsellcard(self)
     if self.ability.set == 'Joker' then
         G.GAME.soe_last_sold_joker = self.config.center_key
     end
-    return g
 end
 
 SMODS.Consumable {
