@@ -16,7 +16,11 @@ match_indent = true
 target = "functions/button_callbacks.lua"
 pattern = 'G.screenwipecard = Card(1, 1, G.CARD_W, G.CARD_H, pseudorandom_element(G.P_CARDS), G.P_CENTERS.c_base)'
 position = "after"
-payload = "G.screenwipecard:set_seal(pseudorandom_element(G.P_SEALS, 'seal').key, true, true)"
+payload = '''
+if not SEALS.config.disablecontent then
+    G.screenwipecard:set_seal(pseudorandom_element(G.P_SEALS, 'seal').key, true, true)
+end
+'''
 match_indent = true
 
 [[patches]]
@@ -89,15 +93,20 @@ G.E_MANAGER:add_event(Event({
 """
 match_indent = true
 
-# Show a Seal Seal because why not
+# Show a Gold Card with a Seal Seal merged with a Steel Ace of Hearts because why not
 [[patches]]
 [patches.pattern]
 target = "game.lua"
 pattern = "replace_card.states.visible = false"
 position = "before"
-payload = "replace_card:set_seal('soe_sealseal', true, true)"
+payload = '''
+if not SEALS.config.disablecontent then
+    replace_card:set_seal('soe_sealseal', true, true)
+    replace_card:set_ability('m_gold')
+    replace_card.ability.soe_mergedcards = {{enhancement = 'm_steel', set = 'Playing Card', rank = 'Ace', suit = 'Hearts', seal = 'soe_sealseal'}}
+end
+'''
 match_indent = true
-overwrite = false
 
 [[patches]]
 [patches.pattern]
@@ -105,9 +114,11 @@ target = "functions/state_events.lua"
 pattern = '''
 -- TARGET: calc_dollar_bonus per card
 if ret then
-    i = i+1
-    add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = _card})
-    pitch = pitch + 0.06
+    if not ret_opts.no_eval_row then
+        i = i+1
+        add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = _card, loc_opts = ret_opts})
+        pitch = pitch + 0.06
+    end
     dollars = dollars + ret
 end
 '''
@@ -121,9 +132,11 @@ if ret then
         if SEALS.has_seal(__card, "Red") then
             for ii = 1, SEALS.get_seal_count(__card, 'Red') do
                 SMODS.calculate_effect({message = localize('k_again_ex'), card = __card}, __card)
-                i = i+1
-                add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = __card})
-                pitch = pitch + 0.06
+                if not ret_opts.no_eval_row then
+                    i = i+1
+                    add_round_eval_row({dollars = ret, bonus = true, name='joker'..i, pitch = pitch, card = __card})
+                    pitch = pitch + 0.06
+                end
                 dollars = dollars + ret
                 if SEALS.has_seal(__card, "Gold") then
                     for ii = 1, SEALS.get_seal_count(__card, 'Gold') do
@@ -151,4 +164,12 @@ if G.GAME.modifiers.cry_force_seal then
     card:set_seal(G.GAME.modifiers.cry_force_seal)
 end
 '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "game.lua"
+pattern = '''SC = Card(G.ROOM.T.w/2 - SC_scale*G.CARD_W/2, 10. + G.ROOM.T.h/2 - SC_scale*G.CARD_H/2, SC_scale*G.CARD_W, SC_scale*G.CARD_H, G.P_CARDS.empty, G.P_CENTERS['j_joker'])'''
+position = "after"
+payload = '''SC:set_seal('Red', true, true)'''
 match_indent = true

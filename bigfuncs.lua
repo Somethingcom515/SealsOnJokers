@@ -1,4 +1,27 @@
+function Card:soe_no_touching3(args)
+    args = args or {}
+    if not SMODS.is_playing_card(self) and not args.skip_calc then
+        SMODS.calculate_context({joker_type_destroyed = true, card = self})
+    end
+    if not args.silent then play_sound('tarot1') end
+    self.T.r = -0.2
+    if not args.no_juice then self:juice_up(0.3, 0.4) end
+    self.states.drag.is = true
+    self.children.center.pinch.x = true
+    G.E_MANAGER:add_event(Event({
+        trigger = 'after', delay = 0.3, blockable = false,
+        func = function()
+            self:remove()
+            return true;
+        end
+    }))
+    return true
+end
+
 function Card:soe_no_touching2(dissolve_colours, silent, dissolve_time_fac, no_juice)
+    if self.getting_sliced and not SMODS.is_playing_card(self) and not SMODS.skip_destroy_calc then
+        SMODS.calculate_context({joker_type_destroyed = true, card = self})
+    end
     dissolve_colours = dissolve_colours or (type(self.destroyed) == 'table' and self.destroyed.colours) or nil
     dissolve_time_fac = dissolve_time_fac or (type(self.destroyed) == 'table' and self.destroyed.time) or nil
     local dissolve_time = 0.7*(dissolve_time_fac or 1)
@@ -60,16 +83,17 @@ function Card:soe_no_touching()
     if G.in_delete_run then goto skip_game_actions_during_remove end
 
     self:remove_from_deck()
-    if self.joker_added_to_deck_but_debuffed then
-        if self.edition and self.edition.card_limit then
-            if self.ability.consumeable then
-                G.consumeables.config.card_limit = G.consumeables.config.card_limit - self.edition.card_limit
-            elseif self.ability.set == 'Joker' then
-                G.jokers.config.card_limit = G.jokers.config.card_limit - self.edition.card_limit
-            end
+    if self.ability.queue_negative_removal then 
+        if self.ability.consumeable then
+            G.consumeables.config.card_limit = G.consumeables.config.card_limit - 1
+        else
+            G.jokers.config.card_limit = G.jokers.config.card_limit - 1
         end 
     end
 
+    if self.ability and not initial and not delay_sprites then
+      self.front_hidden = self:should_hide_front()
+    end
     if not G.OVERLAY_MENU then
         if not SMODS.find_card(self.config.center_key, true)[1] then
             G.GAME.used_jokers[self.config.center_key] = nil
@@ -89,6 +113,7 @@ function Card:soe_no_touching()
         end
     end
 
+    if self.canvas_text then SMODS.clean_up_canvas_text(self) end
     remove_all(self.children)
 
     for k, v in pairs(G.I.CARD) do
@@ -134,9 +159,9 @@ function SEALS.calculate_quantum_editions(card, effects, context)
 end
 
 function SEALS.recalc_quantum_editions(card, from_get)
-    if not G.deck then return end
+    if not G.deck or G.SETTINGS.paused then return end
     local old_editions = G.soe_old_editions[card] or {}
-    local new_editions = from_get or SEALS.get_quantum_editions(card)
+    local new_editions = from_get or SEALS.get_quantum_editions(card, true)
     local old, new, removed, added = {}, {}, {}, {}
     for _, v in ipairs(old_editions) do
         old[v] = (old[v] or 0) + 1
@@ -165,14 +190,14 @@ function SEALS.recalc_quantum_editions(card, from_get)
         end
     end
     if removed[1] then
-        for _, v in ipairs(added) do
+        for _, v in ipairs(removed) do
             local edition = {
                 [v:sub(3)] = true,
                 type = v:sub(3),
                 key = v
             }
-            for k, v in pairs(G.P_CENTERS[v].config) do
-                edition[k] = copy_table(v)
+            for k, vv in pairs(G.P_CENTERS[v].config) do
+                edition[k] = copy_table(vv)
             end
             card.edition = edition
             card:set_edition(nil, true, true)
@@ -181,8 +206,8 @@ function SEALS.recalc_quantum_editions(card, from_get)
     card.edition = old_edition
 end
 
-local sc = SMODS.shallow_copy
-function SEALS.get_quantum_editions(card)
+function SEALS.get_quantum_editions(card, from_recalc)
+    if not G.deck or card.REMOVED then return {} end
     local editions = copy_table(card.ability.soe_quantum_editions) or {}
     local counts = {}
     if editions[1] then
@@ -190,27 +215,36 @@ function SEALS.get_quantum_editions(card)
             counts[v] = true
         end
     end
-    if SEALS.counts_as_everything(card) then
+    if SEALS.counts_as_everything(card, 'edition') then
         for _, v in ipairs(G.P_CENTER_POOLS.Edition) do
             local k = v.key
             if not counts[k] and k ~= 'e_base' and not (card.edition and card.edition.key == k) then
                 editions[#editions+1] = k
             end
         end
-    end
-    if SEALS.has_seal(card, 'soe_rainbowseal') then
+    elseif SEALS.has_seal(card, 'soe_rainbowseal') then
         editions[#editions+1] = not counts.e_foil and 'e_foil' or nil
         editions[#editions+1] = not counts.e_holo and 'e_holo' or nil
         editions[#editions+1] = not counts.e_polychrome and 'e_polychrome' or nil
     end
-    SEALS.recalc_quantum_editions(card, sc(editions))
-    G.soe_old_editions[card] = editions
+    if not from_recalc then
+        SEALS.recalc_quantum_editions(card, editions)
+    end
+    if editions[1] then
+        G.soe_old_editions[card] = editions
+    end
     return editions
 end
 
 function SEALS.get_quantum_enhancements(card)
+    if not G.deck then return {} end
     local enhancements = copy_table(card.ability.soe_quantum_enhancements) or {}
-    if SEALS.counts_as_everything(card) then
+    if card.ability.soe_legalenhancements and card.ability.soe_legalenhancements[1] then
+        for _, v in ipairs(card.ability.soe_legalenhancements) do
+            enhancements[#enhancements+1] = v
+        end
+    end
+    if SEALS.counts_as_everything(card, 'enhancement') then
         local counts = {}
         if enhancements[1] then
             for _, v in ipairs(enhancements) do
@@ -270,6 +304,7 @@ function SEALS.calculate_quantum_enhancements(card, effects, context, joker, smo
 end
 
 function SEALS.get_seals(card, extra_only)
+	if not G.deck or not card.ability then return {} end
     local seals = copy_table(card.ability.soe_quantum_seals) or {}
     local counts = {}
     if seals[1] then
@@ -277,18 +312,16 @@ function SEALS.get_seals(card, extra_only)
             counts[v] = true
         end
     end
-    if AKYRS and SMODS.find_card('j_akyrs_aikoyori')[1] then
-        seals[#seals+1] = not counts.Red and 'Red' or nil
-        seals[#seals+1] = not counts.Gold and 'Gold' or nil
-    end
-    if SEALS.counts_as_everything(card) then
+    if SEALS.counts_as_everything(card, 'seal') then
         for _, v in ipairs(G.P_CENTER_POOLS.Seal) do
             local k = v.key
             if not counts[k] and k ~= 'soe_upgradedsoe_rainbowsealseal' then
                 seals[#seals+1] = k
             end
         end
-        return seals
+    elseif AKYRS and SMODS.find_card('j_akyrs_aikoyori')[1] then
+        seals[#seals+1] = not counts.Red and 'Red' or nil
+        seals[#seals+1] = not counts.Gold and 'Gold' or nil
     end
     if not extra_only and card.seal then table.insert(seals, 1, card.seal) end
     return seals
@@ -383,7 +416,7 @@ function SEALS.calculate_hardcoded_seals(card, context, seal)
                                 _planet = v.key
                             end
                         end
-                        SMODS.add_card({ key = _planet, key_append = 'blusl' })
+                        SMODS.add_card({set = 'Planet', key = _planet, key_append = 'blusl'})
                         G.GAME.consumeable_buffer = 0
                     end
                     return true
@@ -393,9 +426,45 @@ function SEALS.calculate_hardcoded_seals(card, context, seal)
     end
 end
 
-function SEALS.get_quantum_jokers(card)
+function SEALS.recalc_quantum_jokers(card, from_get)
+    if not G.deck or G.SETTINGS.paused then return end
+    local old_jokers = G.soe_old_jokers[card] or {}
+    local new_jokers = card.added_to_deck and (from_get or SEALS.get_quantum_jokers(card, true)) or {}
+    local old, new, removed, added = {}, {}, {}, {}
+    for _, v in ipairs(old_jokers) do
+        old[v] = (old[v] or 0) + 1
+        new[v] = 0
+    end
+    for _, v in ipairs(new_jokers) do
+        new[v] = (new[v] or 0) + 1
+    end
+    for k, v in pairs(new) do
+        if old[k] and old[k] > v then
+            for _=1, old[k]-v do
+                removed[#removed+1] = k
+            end
+        elseif not old[k] or old[k] < v then
+            for _=1, v-(old[k] or 0) do
+                added[#added+1] = k
+            end
+        end
+    end
+    if added[1] then
+        for _, v in ipairs(added) do
+            SEALS.copy_card_but_not(card, v):add_to_deck()
+        end
+    end
+    if removed[1] then
+        for _, v in ipairs(removed) do
+            SEALS.copy_card_but_not(card, v):remove_from_deck()
+        end
+    end
+end
+
+function SEALS.get_quantum_jokers(card, from_recalc)
+    if not G.deck or card.REMOVED then return {} end
     local jokers = copy_table(card.ability.soe_jokers) or {}
-    if (SEALS.config.omegasealplayingcardjokerenable or not SEALS.is_in_area(card, 'playing_cards')) and SEALS.counts_as_everything(card) then
+    if SEALS.counts_as_everything(card, 'joker') then
         local counts = {}
         if jokers[1] then
             for _, v in ipairs(jokers) do
@@ -422,6 +491,14 @@ function SEALS.get_quantum_jokers(card)
                 if k == 'j_perkeo' then break end
             end
         end
+    elseif card.config.center.get_quantum_jokers and type(card.config.center.get_quantum_jokers) == 'function' then
+        card.config.center:get_quantum_jokers(card, jokers)
+    end
+    if not from_recalc then
+        SEALS.recalc_quantum_jokers(card, jokers)
+    end
+    if jokers[1] then
+        G.soe_old_jokers[card] = jokers
     end
     return jokers
 end
@@ -508,16 +585,22 @@ function SEALS.calculate_quantum_jokers(card, context, extra_jokers_list)
 end
 
 function SEALS.get_quantum_stickers(card)
-    if SEALS.counts_as_everything(card) then
-        local stickers = {}
+    if not G.deck then return {} end
+    local stickers = copy_table(card.ability.soe_quantum_stickers) or {}
+    if SEALS.counts_as_everything(card, 'sticker') then
+        local counts = {}
+        if stickers[1] then
+            for _, v in ipairs(stickers) do
+                counts[v] = true
+            end
+        end
         for _, v in ipairs(SMODS.Sticker.obj_buffer) do
-            if not card.ability[v] and v ~= 'akyrs_concealed' then
+            if not counts[v] and not card.ability[v] and v ~= 'akyrs_concealed' then
                 stickers[#stickers+1] = v
             end
         end
-        return stickers
     end
-    return copy_table(card.ability.soe_quantum_stickers) or {}
+    return stickers
 end
 
 function SEALS.calculate_quantum_stickers(card, effects, context)
@@ -583,44 +666,47 @@ function SEALS.safe_set_ability(card, center)
     if ability.bonus and oldcenter.config.bonus then
         ability.bonus = ability.bonus - oldcenter.config.bonus
     end
-    local new_ability = {
-        'name', center.name,
-        'effect', center.effect,
-        'set', center.set,
-        'mult', config.mult or 0,
-        'h_mult', config.h_mult or 0,
-        'h_x_mult', config.h_x_mult or 0,
-        'h_dollars', config.h_dollars or 0,
-        'p_dollars', config.p_dollars or 0,
-        't_mult', config.t_mult or 0,
-        't_chips', config.t_chips or 0,
-        'x_mult', config.Xmult or config.x_mult or 1,
-        'h_chips', config.h_chips or 0,
-        'x_chips', config.x_chips or 1,
-        'h_x_chips', config.h_x_chips or 1,
-        'repetitions', config.repetitions or 0,
-        'h_size', config.h_size or 0,
-        'd_size', config.d_size or 0,
-        'extra_value', 0,
-        'type', center.config.type or '',
-        'order', center.order,
-        'perma_bonus', 0,
-        'perma_x_chips', 0,
-        'perma_mult', 0,
-        'perma_x_mult', 0,
-        'perma_h_chips', 0,
-        'perma_h_x_chips', 0,
-        'perma_h_mult', 0,
-        'perma_h_x_mult', 0,
-        'perma_p_dollars', 0,
-        'perma_h_dollars', 0,
-        'perma_repetitions', 0,
-        'card_limit', 0,
-        'extra_slots_used', 0,
-    }
-    for i=1, 66, 2 do
-        ability[new_ability[i]] = copy_table(new_ability[i+1])
-    end
+    ability.name = center.name
+    ability.effect = center.effect
+    ability.set = center.set
+    ability.mult = config.mult or 0
+    ability.h_mult = config.h_mult or 0
+    ability.h_x_mult = config.h_x_mult or 0
+    ability.h_dollars = config.h_dollars or 0
+    ability.p_dollars = config.p_dollars or 0
+    ability.t_mult = config.t_mult or 0
+    ability.t_chips = config.t_chips or 0
+    ability.x_mult = config.Xmult or config.x_mult or 1
+    ability.h_chips = config.h_chips or 0
+    ability.x_chips = config.x_chips or 1
+    ability.h_x_chips = config.h_x_chips or 1
+    ability.repetitions = config.repetitions or 0
+    ability.h_size = config.h_size or 0
+    ability.d_size = config.d_size or 0
+    ability.extra_value = 0
+    ability.type = config.type or ''
+    ability.order = center.order
+    ability.perma_bonus = ability and ability.perma_bonus or 0
+    ability.perma_x_chips = ability and ability.perma_x_chips or 0
+    ability.perma_mult = ability and ability.perma_mult or 0
+    ability.perma_x_mult = ability and ability.perma_x_mult or 0
+    ability.perma_h_chips = ability and ability.perma_h_chips or 0
+    ability.perma_h_x_chips = ability and ability.perma_h_x_chips or 0
+    ability.perma_h_mult = ability and ability.perma_h_mult or 0
+    ability.perma_h_x_mult = ability and ability.perma_h_x_mult or 0
+    ability.perma_p_dollars = ability and ability.perma_p_dollars or 0
+    ability.perma_h_dollars = ability and ability.perma_h_dollars or 0
+    ability.perma_repetitions = ability and ability.perma_repetitions or 0
+    ability.card_limit = ability and ability.card_limit or 0
+    ability.extra_slots_used = ability and ability.extra_slots_used or 0
+    ability.perma_score = ability and ability.perma_score or 0
+    ability.perma_h_score = ability and ability.perma_h_score or 0
+    ability.perma_x_score = ability and ability.perma_x_score or 0
+    ability.perma_h_x_score = ability and ability.perma_h_x_score or 0
+    ability.perma_blind_size = ability and ability.perma_blind_size or 0
+    ability.perma_h_blind_size = ability and ability.perma_h_blind_size or 0
+    ability.perma_x_blind_size = ability and ability.perma_x_blind_size or 0
+    ability.perma_h_x_blind_size = ability and ability.perma_h_x_blind_size or 0
     ability.bonus = (ability.bonus or 0) + (center.config.bonus or 0)
     for k, v in pairs(config) do
         if k ~= 'bonus' then

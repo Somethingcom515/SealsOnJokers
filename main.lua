@@ -1,3 +1,16 @@
+if SMODS.current_mod.config.disablecontent then
+    for _, v in pairs(SMODS) do
+        if Object.is(v, SMODS.GameObject) and v ~= SMODS.Atlas and v ~= SMODS.Shader and v ~= SMODS.DrawStep and v.register then
+            local old = v.register
+            v.register = function(...)
+                if SMODS.current_mod ~= SEALS then
+                    return old(...)
+                end
+            end
+        end
+    end
+end
+
 SMODS.Atlas{
     key = 'What',
     path = 'What.png',
@@ -132,13 +145,6 @@ SMODS.Atlas{
 }
 
 SMODS.Atlas{
-    key = 'Charms',
-    path = 'Charms.png',
-    px = 68,
-    py = 68
-}
-
-SMODS.Atlas{
     key = 'Boosters',
     path = 'Boosters.png',
     px = 71,
@@ -153,31 +159,10 @@ SMODS.Atlas{
 }
 
 SMODS.Atlas{
-    key = 'Think',
-    path = 'Think.png',
-    px = 71,
-    py = 95
-}
-
-SMODS.Atlas{
     key = 'InfinitySeals',
     path = 'InfinitySeals.png',
     px = 71,
     py = 95
-}
-
-SMODS.Atlas{
-    key = 'Stakes',
-    path = 'Stakes.png',
-    px = 29,
-    py = 29
-}
-
-SMODS.Atlas{
-    key = 'modicon',
-    path = 'modicon.png',
-    px = 34,
-    py = 34
 }
 
 SMODS.Atlas{
@@ -266,7 +251,7 @@ local NFS = SMODS.NFS or NFS
 
 SEALS = SMODS.current_mod
 
-SEALS.no_marquee = true
+--SEALS.requests = {}
 SEALS.optional_features = function()
     return {
         retrigger_joker = true,
@@ -283,6 +268,7 @@ function SEALS.find_mod(id)
 end
 
 local has_cryptid = SEALS.find_mod('Cryptid')
+SEALS.has_cryptid = has_cryptid
 
 local function tc(t, e)
     if e == nil then return false end
@@ -302,24 +288,71 @@ local function true_localize(...)
 end
 
 function SEALS.is_eligible_for_seal(card)
-    if not card.seal then return true end
-    if G.deck and SEALS.has_seal(card, 'soe_sealseal') then return true end
-    if SMODS.find_card('j_soe_sealjoker')[1] or SMODS.find_card('j_soe_sealjoker2')[1] then return true end
-    return false
+    return SEALS.is_eligible_for_property(card, 'seal')
 end
 
-function SEALS.counts_as_everything(card)
-    if not G.deck then return end
-    if card.seal == 'soe_upgradedsoe_rainbowsealseal' then return true end
-    for _, area in ipairs(SMODS.get_card_areas('jokers')) do
-        if area.cards then
-            for _, v in pairs(area.cards) do
-                if v.config.center_key == 'j_soe_infinityomega' then
-                    return true
-                end
+function SEALS.is_eligible_for_property(card, property)
+    if property == 'seal' then
+        if not card.seal then return true end
+        if G.deck and SEALS.has_seal(card, 'soe_sealseal') then return true end
+        if SMODS.find_card('j_soe_sealjoker')[1] or SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'joker_enhancement' then
+        if not card.ability.soe_legalenhancements or not card.ability.soe_legalenhancements[1] then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'enhancement' then
+        if card.config.center_key == 'c_base' then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'edition' then
+        if not card.edition then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'rank' then
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'suit' then
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif type(property) == 'table' and property.property == 'sticker' then
+        if not card.ability[property.key] then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'paperclip' then
+        local passed = true
+        for k in pairs(card.ability) do
+            if PB_UTIL.is_paperclip(k) then
+                passed = false
+                break
             end
         end
+        if passed then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'marking' then
+        local passed = true
+        for k in pairs(card.ability) do
+            if LR_UTIL.is_marking(k) then
+                passed = false
+                break
+            end
+        end
+        if passed then return true end
+        if SMODS.find_card('j_soe_sealjoker2')[1] then return true end
+        return false
+    elseif property == 'letter' then
+        if (card.ability.aikoyori_letters_stickers or '') == '' then return true end
     end
+end
+
+function SEALS.counts_as_everything(card, identifier)
+    if not G.deck then return end
+    if G.j_soe_infinityomega_obtained then return true end
+    if identifier == 'rarity' and card.config.center.set == 'Joker' and SMODS.has_enhancement(card, 'm_wild') then
+        return true
+    end
+    --if card.seal == 'soe_upgradedsoe_rainbowsealseal' and (identifier ~= 'joker' or (SEALS.config.omegasealplayingcardjokerenable or not SEALS.is_in_area(card, 'playing_cards'))) then return true end
 end
 
 local oldwingame = win_game
@@ -342,10 +375,61 @@ function win_game()
 end
 
 SMODS.Consumable{
+    key = 'talismanq',
+    set = 'Spectral',
+    atlas = 'What',
+    pos = {x = 2, y = 0},
+    cost = 4,
+    config = {mod_conv = 'Gold', cards = 1},
+    loc_vars = function(_, info_queue)
+        info_queue[#info_queue+1] = {key = 'gold_seal_joker', set = 'Other'}
+    end,
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_seal(v) then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_seal(v) then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('talisman'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        highlighted:set_seal('Gold', nil, true)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
     key = 'dejavuq',
     set = 'Spectral',
     atlas = 'What',
     pos = {x = 0, y = 0},
+    cost = 4,
     config = {mod_conv = 'Red', cards = 1},
     loc_vars = function(_, info_queue)
         info_queue[#info_queue+1] = {key = 'red_seal_joker', set = 'Other'}
@@ -395,6 +479,7 @@ SMODS.Consumable{
     set = 'Spectral',
     atlas = 'What',
     pos = {x = 1, y = 0},
+    cost = 4,
     config = {mod_conv = 'Blue', cards = 1},
     loc_vars = function(_, info_queue)
         info_queue[#info_queue+1] = {key = 'blue_seal_joker', set = 'Other'}
@@ -440,59 +525,11 @@ SMODS.Consumable{
 }
 
 SMODS.Consumable{
-    key = 'talismanq',
-    set = 'Spectral',
-    atlas = 'What',
-    pos = {x = 2, y = 0},
-    config = {mod_conv = 'Gold', cards = 1},
-    loc_vars = function(_, info_queue)
-        info_queue[#info_queue+1] = {key = 'gold_seal_joker', set = 'Other'}
-    end,
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        for _, v in ipairs(G.jokers.cards) do
-            if SEALS.is_eligible_for_seal(v) then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if SEALS.is_eligible_for_seal(v) then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('talisman'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        highlighted:set_seal('Gold', nil, true)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
     key = 'mediumq',
     set = 'Spectral',
     atlas = 'What',
     pos = {x = 3, y = 0},
+    cost = 4,
     config = {mod_conv = 'Purple', cards = 1},
     loc_vars = function(_, info_queue)
         info_queue[#info_queue+1] = {key = 'purple_seal_joker', set = 'Other'}
@@ -543,6 +580,7 @@ if has_cryptid then
         set = 'Spectral',
         atlas = 'What',
         pos = {x = 4, y = 0},
+        cost = 4,
         config = {mod_conv = 'cry_azure', cards = 1},
         loc_vars = function(_, info_queue)
             info_queue[#info_queue+1] = {key = 'cry_azure_seal_joker', set = 'Other'}
@@ -591,6 +629,7 @@ if has_cryptid then
         set = 'Spectral',
         atlas = 'What',
         pos = {x = 5, y = 0},
+        cost = 4,
         config = {mod_conv = 'cry_green', cards = 1},
         loc_vars = function(_, info_queue)
             info_queue[#info_queue+1] = {key = 'cry_green_seal_joker', set = 'Other'}
@@ -637,15 +676,15 @@ if has_cryptid then
 end
 
 SMODS.Consumable{
-    key = 'devilq',
+    key = 'magicianq',
     set = 'Tarot',
     atlas = 'What',
-    pos = {x = 6, y = 0},
+    pos = {x = 11, y = 0},
     unlocked = true,
     discovered = true,
     can_use = function()
         for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
                 return true
             end
         end
@@ -654,7 +693,279 @@ SMODS.Consumable{
     use = function()
         local eligible = {}
         for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('magician'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_lucky)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'empressq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 9, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('empress'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_mult)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'heirophantq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 10, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('hierophant'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_bonus)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'loversq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 13, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('lovers'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_wild)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'chariotq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 8, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('chariot'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_steel)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'justiceq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 12, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                eligible[#eligible+1] = v
+            end
+        end
+        local highlighted = pe(eligible, ps('justice'))
+        if highlighted then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    play_sound("tarot1")
+                    highlighted:juice_up(0.3, 0.5)
+                    return true
+                end,
+            }))
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if highlighted then
+                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_glass)
+                    end
+                    return true
+                end,
+            }))
+        end
+    end
+}
+
+SMODS.Consumable{
+    key = 'devilq',
+    set = 'Tarot',
+    atlas = 'What',
+    pos = {x = 6, y = 0},
+    unlocked = true,
+    discovered = true,
+    can_use = function()
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
+                return true
+            end
+        end
+        return false
+    end,
+    use = function()
+        local eligible = {}
+        for _, v in ipairs(G.jokers.cards) do
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
                 eligible[#eligible+1] = v
             end
         end
@@ -690,7 +1001,7 @@ SMODS.Consumable{
     discovered = true,
     can_use = function()
         for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements)) and not v.config.center.soe_is_enhancement_joker) or SMODS.find_card('j_soe_sealjoker2')[1] then
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
                 return true
             end
         end
@@ -699,7 +1010,7 @@ SMODS.Consumable{
     use = function()
         local eligible = {}
         for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements)) and not v.config.center.soe_is_enhancement_joker) or SMODS.find_card('j_soe_sealjoker2')[1] then
+            if SEALS.is_eligible_for_property(v, 'joker_enhancement') then
                 eligible[#eligible+1] = v
             end
         end
@@ -727,237 +1038,11 @@ SMODS.Consumable{
 }
 
 SMODS.Consumable{
-    key = 'chariotq',
-    set = 'Tarot',
-    atlas = 'What',
-    pos = {x = 8, y = 0},
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('chariot'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_steel)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
-    key = 'empressq',
-    set = 'Tarot',
-    atlas = 'What',
-    pos = {x = 9, y = 0},
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('empress'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_mult)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
-    key = 'hierophantq',
-    set = 'Tarot',
-    atlas = 'What',
-    pos = {x = 10, y = 0},
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('hierophant'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_bonus)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
-    key = 'magicianq',
-    set = 'Tarot',
-    atlas = 'What',
-    pos = {x = 11, y = 0},
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('magician'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_lucky)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
-    key = 'justiceq',
-    set = 'Tarot',
-    atlas = 'What',
-    pos = {x = 12, y = 0},
-    unlocked = true,
-    discovered = true,
-    can_use = function()
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                return true
-            end
-        end
-        return false
-    end,
-    use = function()
-        local eligible = {}
-        for _, v in ipairs(G.jokers.cards) do
-            if (not (v.ability.soe_legalenhancements and next(v.ability.soe_legalenhancements))) or SMODS.find_card('j_soe_sealjoker2')[1] then
-                eligible[#eligible+1] = v
-            end
-        end
-        local highlighted = pe(eligible, ps('justice'))
-        if highlighted then
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    play_sound("tarot1")
-                    highlighted:juice_up(0.3, 0.5)
-                    return true
-                end,
-            }))
-            G.E_MANAGER:add_event(Event({
-                trigger = "after",
-                delay = 0.1,
-                func = function()
-                    if highlighted then
-                        SEALS.set_joker_enhancement(highlighted, G.P_CENTERS.m_glass)
-                    end
-                    return true
-                end,
-            }))
-        end
-    end
-}
-
-SMODS.Consumable{
     key = 'eternalq',
     set = 'Spectral',
     atlas = 'What',
     pos = {x = 0, y = 0},
+    cost = 4,
     unlocked = true,
     discovered = true,
     can_use = function()
@@ -1001,6 +1086,7 @@ SMODS.Consumable{
     set = 'Spectral',
     atlas = 'What',
     pos = {x = 0, y = 0},
+    cost = 4,
     config = {mod_conv = 'Red', cards = 1},
     loc_vars = function(_, info_queue)
         info_queue[#info_queue+1] = {key = 'red_seal_joker', set = 'Other'}
@@ -1050,6 +1136,7 @@ SMODS.Consumable{
     set = 'Spectral',
     atlas = 'Confusion',
     pos = {x = 2, y = 0},
+    cost = 4,
     config = {max_highlighted = 1},
     unlocked = true,
     discovered = true,
@@ -1084,23 +1171,6 @@ SMODS.Consumable{
     end
 }
 
-local function calculate_distance(point1, point2)
-    return math.sqrt((point2[1] - point1[1])^2 + (point2[2] - point1[2])^2)
-end
-
-local function find_closest_point(target_point, points)
-    local min_distance = 1e309
-    local closest_point
-    for i = 1, #points do
-        local distance = calculate_distance(target_point, points[i])
-        if distance < min_distance then
-            min_distance = distance
-            closest_point = points[i]
-        end
-    end
-    return closest_point
-end
-
 function SEALS.get_closest_card(card, fromred)
     local points = {}
     local target_point = {card.T.x + card.T.w/2, card.T.y + card.T.h/2}
@@ -1110,7 +1180,16 @@ function SEALS.get_closest_card(card, fromred)
             points[#points+1] = {v.T.x + v.T.w/2, v.T.y + v.T.h/2, card = v}
         end
     end
-    local closest_point = find_closest_point(target_point, points)
+    local min_distance = 1e309
+    local closest_point
+    for i = 1, #points do
+        local point2 = points[i]
+        local distance = math.sqrt((point2[1] - target_point[1])^2 + (point2[2] - target_point[2])^2)
+        if distance < min_distance then
+            min_distance = distance
+            closest_point = points[i]
+        end
+    end
     if closest_point and closest_point.card then
         if fromred then closest_point.card.ability.soe_has_Red = true end
         return closest_point.card
@@ -1120,10 +1199,8 @@ end
 local oldcardstopdrag = Card.stop_drag
 function Card:stop_drag()
     oldcardstopdrag(self)
-    if G.deck then
-        if self and self.ability and self.ability.soe_detached_seal == 'Red' then
-            self.ability.extra.card = SEALS.get_closest_card(self, true).unique_val
-        end
+    if G.deck and is(self, Card) and self.ability.soe_detached_seal == 'Red' then
+        self.ability.extra.card = SEALS.get_closest_card(self, true).unique_val
     end
 end
 
@@ -1157,7 +1234,7 @@ SEALS.detached_seals = {
                                     _planet = v.key
                                 end
                             end
-                            SMODS.add_card({ key = _planet, key_append = 'blusl' })
+                            SMODS.add_card({set = 'Planet', key = _planet, key_append = 'blusl'})
                             G.GAME.consumeable_buffer = 0
                         end
                         return true
@@ -1181,6 +1258,7 @@ SEALS.detached_seals = {
     Purple = {
         calculate = function(_, _, context)
             if (context.pre_discard and #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit) or context.forcetrigger then
+                G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
                 G.E_MANAGER:add_event(Event({
                     trigger = 'before',
                     delay = 0.0,
@@ -1207,14 +1285,25 @@ for k, v in pairs(SEALS.detached_seals) do
 end
 
 local oldgeneratecardui = generate_card_ui
-function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, hide_desc, main_start, main_end, card)
+function generate_card_ui(_c, a, b, card_type, c, d, e, f, card)
     local oldset, oldkey = _c.set, _c.key
-    if card and card.ability and card.ability.soe_detached_seal then
-        card_type = "Seal"
-        _c.set = 'soe_DetachedSeal'
-        _c.key = card.ability.soe_detached_seal
+    if card and card.ability then
+        if card.ability.soe_detached_seal then
+            card_type = "Seal"
+            _c.set = 'soe_DetachedSeal'
+            _c.key = card.ability.soe_detached_seal
+        elseif card.ability.soe_loc_set or card.ability.soe_loc_key then
+            _c.set = card.ability.soe_loc_set or _c.set
+            _c.key = card.ability.soe_loc_key or _c.key
+        end
     end
-    local g = oldgeneratecardui(_c, full_UI_table, specific_vars, card_type, badges, hide_desc, main_start, main_end, card)
+    if card and (SEALS.has_edition(card, 'e_soe_frozen') and not card.config.center.soe_frozen_immune) and not (card.area and card.area.config.collection) and not card.config.center.soe_frozen_immune then
+        local snapshot = card.ability.soe_frozen_snapshot
+        if card.ability.soe_frozen_key == card.config.center_key and snapshot.loc_vars then
+            G.soe_localize_vars_override = snapshot.loc_vars
+        end
+    end
+    local g = oldgeneratecardui(_c, a, b, card_type, c, d, e, f, card)
     if card and card.ability and card.ability.soe_detached_seal then
         localize({type = 'descriptions', key = _c.key, set = _c.set, nodes = g.main, vars = (SEALS.detached_seals[_c.key].loc_vars and SEALS.detached_seals[_c.key]:loc_vars(card).vars) or {}})
         _c.set = oldset
@@ -1223,54 +1312,50 @@ function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, h
     return g
 end
 
-local oldguidefcardhpopup = G.UIDEF.card_h_popup
-function G.UIDEF.card_h_popup(card)
-    G.soe_ui_card = card
-    local g = oldguidefcardhpopup(card)
-    G.soe_ui_card = nil
-    return g
-end
-
-local oldinfotipfromrows = info_tip_from_rows
-function info_tip_from_rows(desc_nodes, name)
-    local g = oldinfotipfromrows(desc_nodes, name)
-    if G.soe_ui_card and G.soe_ui_card.ability and G.soe_ui_card.ability.soe_mergedcards and G.soe_ui_card.ability.soe_mergedcards[1] then
-        local passed = false
-        for _, v in ipairs(G.soe_ui_card.ability.soe_mergedcards) do
-            if localize({type = 'name_text', key = v.key, set = v.set}) == name then
-                passed = true
-            end
-        end
-        if not passed then return g end
-        for _, v in ipairs(G.soe_ui_card.ability.soe_mergedcards) do
-            local copy = SEALS.copy_card_but_not(G.soe_ui_card, v.key, v)
-            local h_popup = G.UIDEF.card_h_popup(copy)
-            local badges = h_popup.nodes[1].nodes[1].nodes[1].nodes[#h_popup.nodes[1].nodes[1].nodes[1].nodes]
-            g.nodes[#g.nodes+1] = badges
+local oldlocalize = localize
+function localize(args, ...)
+    if args == 'k_joker' then
+        if G.soe_request_result == true or G.soe_request_fixed == true then
+            return 'Your Joker'
+        elseif G.soe_request_result == false then
+            return 'Your Joker was rejected!'
         end
     end
-    return g
+    if args == 'k_unlocked_ex' then
+        if G.soe_request_result == true then
+            return 'is ready!'
+        elseif G.soe_request_fixed == true then
+            return 'was fixed!'
+        elseif G.soe_request_result == false then
+            return 'Check the mod to see the reason'
+        end
+    end
+    if type(args) ~= 'table' then return oldlocalize(args, ...) end
+    if args.vars and G.soe_localize_vars_override then
+        args.vars = G.soe_localize_vars_override
+    end
+    return oldlocalize(args, ...)
 end
 
 local oldfuncsselfreroll = G.FUNCS.reroll_shop
 G.FUNCS.reroll_shop = function()
     oldfuncsselfreroll()
-    if G.GAME.rerollbuttonseal == 'Gold' then
+    if G.GAME.soe_rerollbuttonseal == 'Gold' then
         ease_dollars(3)
-    elseif G.GAME.rerollbuttonseal == 'Red' then
+    elseif G.GAME.soe_rerollbuttonseal == 'Red' then
         oldfuncsselfreroll()
-    elseif G.GAME.rerollbuttonseal == 'Blue' and G.GAME.last_hand_played then
-        local planet
+    elseif G.GAME.soe_rerollbuttonseal == 'Blue' and G.GAME.last_hand_played then
+        local _planet
         for _, v in ipairs(G.P_CENTER_POOLS.Planet) do
             if v.config.hand_type == G.GAME.last_hand_played then
-                planet = v.key
+                _planet = v.key
                 break
             end
         end
-        if planet then
-            SMODS.add_card({key = planet})
+        if _planet then
+            SMODS.add_card({set = 'Planet', key = _planet, key_append = 'blusl'})
         end
-    elseif G.GAME.rerollbuttonseal == 'Purple' then
+    elseif G.GAME.soe_rerollbuttonseal == 'Purple' then
         SMODS.add_card({set = 'Tarot'})
     end
 end
@@ -1309,10 +1394,11 @@ function create_card(_type, a, b, c, d, e, forced_key, key_append)
             card:set_edition(edition)
         end
     end
-    if G.GAME.used_vouchers.v_soe_phantasm and not card.playing_card and not (card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements)) then
+    if G.GAME.used_vouchers.v_soe_phantasm and not card.playing_card and (not card.ability.soe_legalenhancements or not card.ability.soe_legalenhancements[1]) then
         local options = get_current_pool('Enhanced')
         for i, v in ipairs(options) do
-            if v ~= 'UNAVAILABLE' and G.P_CENTERS[v] and (G.P_CENTERS[v].replace_base_card or G.P_CENTERS[v].mod == SEALS or v == 'm_stone') then
+            local center = G.P_CENTERS[v]
+            if v == 'm_stone' or not center or center.replace_base_card then
                 table.remove(options, i)
             end
         end
@@ -1331,6 +1417,7 @@ function create_card(_type, a, b, c, d, e, forced_key, key_append)
         local seal = SMODS.poll_seal({key = 'deception', guaranteed = (deception_poll == 'seal')})
         if seal then
             card:set_seal(seal)
+            card.ability.delay_seal = nil
         end
     end
     return card
@@ -1341,22 +1428,11 @@ function SMODS.create_card(t)
     if not t.area and t.set == 'soe_Synonyms' then
         t.area = G.consumeables
     end
-    return oldsmodscreatecard(t)
-end
-
-local oldeventmanageraddevent = G.E_MANAGER.add_event
-function G.E_MANAGER:add_event(event, ...)
-    if is(event, Event) then
-        if G.soe_redsealretriggering or G.soe_mergedcardusing then
-            local oldeventfunc = event.func
-            event.func = function()
-                local ok, err = pcall(oldeventfunc)
-                if not ok then sendErrorMessage(err, 'SEALS') end
-                return ok and err or true
-            end
-        end
-        oldeventmanageraddevent(self, event, ...)
+    local card = oldsmodscreatecard(t)
+    if t.key_append == 'soe_synonympack' then
+        card.ability.soe_legitimate = true
     end
+    return card
 end
 
 local oldcardsetability = Card.set_ability
@@ -1365,7 +1441,7 @@ function Card:set_ability(center, initial, delay_sprites)
 		assert(G.P_CENTERS[center], ('Could not find center "%s"'):format(center))
 		center = G.P_CENTERS[center]
 	end
-    if self.playing_card and self.config.center_key ~= 'c_base' and not initial and delay_sprites ~= 'quantum' and not self.soe_from_copy and center.key ~= 'c_base' and SMODS.find_card('j_soe_sealjoker2')[1] then
+    if self.playing_card and self.config.center_key ~= 'c_base' and not initial and delay_sprites ~= 'quantum' and not self.soe_from_copy and center.key ~= 'c_base' and SEALS.is_eligible_for_property(self, 'enhancement') then
         self.ability.soe_quantum_enhancements = self.ability.soe_quantum_enhancements or {}
         self.ability.soe_quantum_enhancements[#self.ability.soe_quantum_enhancements+1] = center.key
         return
@@ -1386,22 +1462,21 @@ local oldcardsetbase = Card.set_base
 function Card:set_base(card, initial, ...)
     local oldbase
     if self.config.center.soe_blueprint then oldbase = self.base end
-    if initial or self.soe_from_copy or not SMODS.find_card('j_soe_sealjoker2')[1] then return oldcardsetbase(self, card, initial, ...) end
-    local newrank = card and card.value and SMODS.Ranks[card.value]
-    local newsuit = card and card.suit and SMODS.Suits[card.suit]
-    if newrank then
-        if self.playing_card and self.base and self.base.id and self.base.id ~= newrank.id and not tc(self.ability.soe_quantum_ranks, newrank.key) then
+    if not initial and not self.soe_from_copy then
+        local newrank = card and card.value and SMODS.Ranks[card.value]
+        local newsuit = card and card.suit and SMODS.Suits[card.suit]
+        local passed = false
+        if newrank and self.playing_card and self.base and self.base.value and self.base.value ~= newrank.key and SEALS.is_eligible_for_property(self, 'rank') and  not tc(self.ability.soe_quantum_ranks, newrank.key) then
             self.ability.soe_quantum_ranks = self.ability.soe_quantum_ranks or {}
-            self.ability.soe_quantum_ranks[#self.ability.soe_quantum_ranks+1] = newrank.key
+            passed = true
         end
-    end
-    if newsuit then
-        if self.playing_card and self.base and self.base.suit and self.base.suit ~= newsuit.key and not tc(self.ability.soe_quantum_suits, newsuit.key) then
+        if newsuit and self.playing_card and self.base and self.base.suit and self.base.suit ~= newsuit.key and SEALS.is_eligible_for_property(self, 'suit') and not tc(self.ability.soe_quantum_suits, newsuit.key) then
             self.ability.soe_quantum_suits = self.ability.soe_quantum_suits or {}
             self.ability.soe_quantum_suits[#self.ability.soe_quantum_suits+1] = newsuit.key
+            passed = true
         end
+        if passed then return end
     end
-    if (newsuit or newrank) and (self.base and self.base.value and self.base.suit) then return end
     oldcardsetbase(self, card, initial, ...)
     if oldbase then
         local newbase = self.base
@@ -1412,7 +1487,7 @@ end
 
 local oldcardsetedition = Card.set_edition
 function Card:set_edition(edition, immediate, silent, ...)
-    if edition and self.edition and not self.soe_from_copy and SMODS.find_card('j_soe_sealjoker2')[1] then
+    if edition and self.edition and not self.soe_from_copy and SEALS.is_eligible_for_property(self, 'edition') then
         local edition_key = edition.type and 'e_'..edition.type
         if not edition_key then
             if type(edition) == 'table' then
@@ -1422,10 +1497,13 @@ function Card:set_edition(edition, immediate, silent, ...)
                 edition_key = edition
             end
         end
+        local centers = G.P_CENTERS
+        if centers['e_'..edition_key] then edition_key = 'e_'..edition_key end
+        if not centers[edition_key] then return end
         self.ability.soe_quantum_editions = self.ability.soe_quantum_editions or {}
         self.ability.soe_quantum_editions[#self.ability.soe_quantum_editions+1] = edition_key
         if not silent then
-            local ed = G.P_CENTERS[edition_key]
+            local ed = centers[edition_key]
             G.CONTROLLER.locks.edition = true
             G.E_MANAGER:add_event(Event({
                 trigger = 'after',
@@ -1455,17 +1533,9 @@ function Card:set_edition(edition, immediate, silent, ...)
     oldcardsetedition(self, edition, immediate, silent, ...)
 end
 
-local oldcardgetchipbonus = Card.get_chip_bonus
-function Card:get_chip_bonus()
-    local ranks = SEALS.get_ranks(self)
-    table.sort(ranks, function(a, b) return SMODS.Ranks[a].nominal > SMODS.Ranks[b].nominal end)
-    self.base.nominal = (SMODS.Ranks[ranks[1]] or {}).nominal or self.base.nominal
-    return oldcardgetchipbonus(self)
-end
-
 local oldcardissuit = Card.is_suit
 function Card:is_suit(suit, ...)
-    if SEALS.counts_as_everything(self) then return true end
+    if SEALS.counts_as_everything(self, 'suit') then return true end
     local g = oldcardissuit(self, suit, ...)
     if not g and self.ability.soe_quantum_suits and self.ability.soe_quantum_suits[1] then
         for _, v in ipairs(self.ability.soe_quantum_suits) do
@@ -1491,7 +1561,7 @@ end
 local oldisface = Card.is_face
 function Card:is_face(from_boss)
     if self.debuff and not from_boss then return end
-    local extra_ranks = self.ability.soe_quantum_ranks
+    local extra_ranks = SEALS.get_ranks(self)
     if extra_ranks and extra_ranks[1] then
         for _, v in ipairs(extra_ranks) do
             if SMODS.Ranks[v].face then return true end
@@ -1504,7 +1574,7 @@ if Card.is_numbered then
     local oldisnumbered = Card.is_numbered
     function Card:is_numbered(from_boss)
         if self.debuff and not from_boss then return end
-        local extra_ranks = self.ability.soe_quantum_ranks
+        local extra_ranks = SEALS.get_ranks(self)
         if extra_ranks and extra_ranks[1] then
             for _, v in ipairs(extra_ranks) do
                 if not SMODS.Ranks[v].face then return true end
@@ -1517,7 +1587,7 @@ end
 
 local oldcardisrarity = Card.is_rarity
 function Card:is_rarity(...)
-    if SEALS.counts_as_everything(self) then
+    if SEALS.counts_as_everything(self, 'rarity') then
         return true
     end
     return oldcardisrarity(self, ...)
@@ -1576,13 +1646,6 @@ function SEALS.face_check(card, nonface, from_boss)
     return result
 end
 
---[[
-function SEALS.NOT(func, ...)
-    if func == Card.is_face then return true end
-    return (func(...) and false) or true
-end
-]]
-
 SMODS.DynaTextEffect {
     key = 'circle',
     func = function (_, _, letter)
@@ -1619,7 +1682,7 @@ function SEALS.get_ranks(card, extra_only)
         end
     end
     local ranks = {}
-    if SEALS.counts_as_everything(card) then
+    if SEALS.counts_as_everything(card, 'rank') then
         for _, v in ipairs(SMODS.Rank.obj_buffer) do
             ranks[#ranks+1] = v
         end
@@ -1631,7 +1694,7 @@ function SEALS.get_ranks(card, extra_only)
             if SMODS.Ranks[v].id == id then ranks[v] = true; break end
         end
     end
-    if has_cryptid and find_joker('cry-Maximized')[1] and SEALS.face_check(card, true) then
+    if has_cryptid and SMODS.find_card('j_cry_maximized')[1] and SEALS.face_check(card, true) then
         ranks['10'] = true
     end
     if card.ability.soe_quantum_ranks and card.ability.soe_quantum_ranks[1] then
@@ -1777,7 +1840,7 @@ end
 if SEALS.find_mod('paperback') then
     local oldpbutilremovepaperclip = PB_UTIL.remove_paperclip
     function PB_UTIL.remove_paperclip(card)
-        if SMODS.find_card('j_soe_sealjoker2')[1] then return end
+        if SEALS.is_eligible_for_property(card, 'paperclip') then return end
         return oldpbutilremovepaperclip(card)
     end
 end
@@ -1785,7 +1848,7 @@ end
 if SEALS.find_mod('LuckyRabbit') then
     local oldlrutilsetmarking = LR_UTIL.set_marking
     function LR_UTIL.set_marking(card, mark)
-        if not SMODS.find_card('j_soe_sealjoker2')[1] then return oldlrutilsetmarking(card, mark) end
+        if not SEALS.is_eligible_for_property(card, 'marking') then return oldlrutilsetmarking(card, mark) end
         local key = 'fmod_'..mark..'_mark'
         if card and LR_UTIL.is_marking(key) then
             SMODS.Stickers[key]:apply(card, true)
@@ -1796,7 +1859,8 @@ end
 if AKYRS then
     local oldcardsetletters = Card.set_letters
     function Card:set_letters(letter)
-        if SMODS.find_card('j_soe_sealjoker2')[1] then letter = (self.ability.aikoyori_letters_stickers or '')..letter end
+        if not self.ability then return end
+        if SEALS.is_eligible_for_property(self, 'letter') then letter = (self.ability.aikoyori_letters_stickers or '')..letter end
         return oldcardsetletters(self, letter)
     end
 
@@ -1816,6 +1880,11 @@ end
 G.FUNCS.soe_purchaseitems = function()
     G.GAME.soe_purchasingitems = true
     G.FUNCS.overlay_menu({definition = SEALS.create_UIBox_your_purchases()})
+end
+
+G.FUNCS.soe_displayrules = function()
+    G.soe_rules_read = true
+    G.FUNCS.overlay_menu({definition = SEALS.create_UIBox_rules()})
 end
 
 G.FUNCS.soe_can_purchaseitems = function(e)
@@ -2074,7 +2143,7 @@ function SEALS.create_UIBox_enter_key()
                         h = 1,
                         max_length = 100,
                         extended_corpus = true,
-                        prompt_text = "Enter key of Deck"..(SEALS.find_mod("partner") and "/Partner" or "")..(SEALS.find_mod("CardSleeves") and "/Sleeve" or ""),
+                        prompt_text = "Enter key/name of Deck"..(SEALS.find_mod("partner") and "/Partner" or "")..(SEALS.find_mod("CardSleeves") and "/Sleeve" or ""),
                         ref_table = G,
                         ref_value = "ENTERED_PURCHASE",
                         keyboard_offset = 1,
@@ -2174,10 +2243,10 @@ function SEALS.purchase_key(key)
         end
         if center.name == "Checkered Deck" or center.name == "Checkered Sleeve" then
             for k, v in pairs(G.playing_cards) do
-                if v.base.suit == 'Clubs' then 
+                if v.base.suit == 'Clubs' then
                     v:change_suit('Spades')
                 end
-                if v.base.suit == 'Diamonds' then 
+                if v.base.suit == 'Diamonds' then
                     v:change_suit('Hearts')
                 end
             end
@@ -2216,8 +2285,8 @@ function SEALS.purchase_key(key)
     ease_dollars(-SEALS.get_cost(key), true)
 end
 
-function G.FUNCS.soe_enter_key_to_purchase(e)
-    G.ENTERED_PURCHASE = ""
+function G.FUNCS.soe_enter_key_to_purchase()
+    G.ENTERED_PURCHASE = ''
     G.CHOOSE_PURCHASE = UIBox({
         definition = SEALS.create_UIBox_enter_key(),
         config = {
@@ -2266,6 +2335,69 @@ function SEALS.create_UIBox_your_purchases()
         }
     })
     return t
+end
+
+function SEALS.create_UIBox_rules()
+    return create_UIBox_generic_options({
+        back_func = 'exit_overlay_menu',
+        contents = {
+            {
+                n = G.UIT.R,
+                config = {
+                    padding = 0,
+                    align = "tm"
+                },
+                nodes = {
+                    {
+                        n = G.UIT.R,
+                        config = {
+                            emboss = 0.05,
+                            minh = 6,
+                            r = 0.1,
+                            minw = 6,
+                            align = "tm",
+                            padding = 0.2,
+                            colour = G.C.BLACK
+                        },
+                        nodes = {
+                            {
+                                n = G.UIT.R,
+                                config = {
+                                    padding = 0.2,
+                                    align = "cm"
+                                },
+                                nodes = {
+                                    {
+                                        n = G.UIT.T,
+                                        config = {
+                                            text =
+[[
+RULES
+1. I can decline your request
+(only if it's impossible or makes no sense)
+2. If you send too many spam/fake requests I might prevent you from sending more requests
+3. Be clear on what your joker should do
+4. Your request can be literally anything, no matter how difficult it is
+5. If I decline your request you will get your consumable back
+(unless it's obviously spam/fake)
+6. Your joker arrives when the game next checks the request (once every minute) after completion
+7. Do not expect your joker to be done instantly
+(I might be sleeping or the joker is difficult)
+8. If you use the code outside of Seals On Everything, you must give me full credit (Somethingcom515)
+]],
+                                            shadow = false,
+                                            scale = 0.45,
+                                            colour = G.C.UI.TEXT_LIGHT
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
 end
 
 local oldcreateuiboxyourcollection = create_UIBox_your_collection
@@ -2349,6 +2481,7 @@ function G.UIDEF.soe_purchase_and_fuse_buttons(card)
             },
         },
     }}}
+    --[[
     local fuse = {n=G.UIT.R, config={align = 'cl'}, nodes={
         {n=G.UIT.C, config={align = "cl"}, nodes={
             {n=G.UIT.C, config={ref_table = card, align = "cl",maxw = 1.25, padding = 0.1, r=0.08, minw = 1.25, hover = true, shadow = true, colour = G.C.GOLD, one_press = true, button = 'soe_fusesealjokers', func = 'soe_can_fusesealjokers'}, nodes={
@@ -2365,16 +2498,56 @@ function G.UIDEF.soe_purchase_and_fuse_buttons(card)
             }}
         }}
     }}
+    ]]
     return {
       n=G.UIT.ROOT, config = {padding = 0, colour = G.C.CLEAR}, nodes={
         {n=G.UIT.C, config={padding = 0.15, align = 'cl'}, nodes={
           {n=G.UIT.R, config={align = 'cl'}, nodes={
             purchase
           }},
+          --[[
           {n=G.UIT.R, config={align = 'cl'}, nodes={
             fuse
-          }},
-        }},
+          }}
+          ]]
+        }}
+    }}
+end
+
+function G.UIDEF.soe_rules_button(card)
+    local rules = {n=G.UIT.R, config={align = 'cl'}, nodes={{
+        n = G.UIT.C,
+        config = { align = "cl" },
+        nodes = {
+
+            {
+                n = G.UIT.C,
+                config = { ref_table = card, align = "cl", maxw = 1.25, padding = 0.1, r = 0.08, minw = 1.25, hover = true, shadow = true, colour = G.C.RED, button = 'soe_displayrules'},
+                nodes = {
+                    {
+                        n = G.UIT.C,
+                        config = { align = "tm" },
+                        nodes = {
+                            {
+                                n = G.UIT.R,
+                                config = { align = "cm", maxw = 1.25 },
+                                nodes = {
+                                    { n = G.UIT.T, config = { text = "RULES", colour = G.C.UI.TEXT_LIGHT, scale = 0.4, shadow = true } }
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        },
+    }}}
+    return {
+      n=G.UIT.ROOT, config = {padding = 0, colour = G.C.CLEAR}, nodes={
+        {n=G.UIT.C, config={padding = 0.15, align = 'cl'}, nodes={
+          {n=G.UIT.R, config={align = 'cl'}, nodes={
+            rules
+          }}
+        }}
     }}
 end
 
@@ -2385,6 +2558,17 @@ SMODS.DrawStep{
     func = function(self)
         if self.children.soe_seal2buttons then
             self.children.soe_seal2buttons:draw()
+        end
+    end
+}
+
+SMODS.draw_ignore_keys.soe_rulesbutton = true
+SMODS.DrawStep{
+    key = 'rulesbutton',
+    order = -30,
+    func = function(self)
+        if self.children.soe_rulesbutton then
+            self.children.soe_rulesbutton:draw()
         end
     end
 }
@@ -2514,88 +2698,6 @@ function G.FUNCS.soe_use_joker(e)
     end, 'after', 0.2)
 end
 
---[[
-SMODS.Voucher{
-    key = 'orbitalconnoisseur',
-    cost = 10,
-    atlas = 'VoucherSynonyms',
-    pos = {x = 2, y = 0},
-    unlocked = true,
-    discovered = true,
-    redeem = function()
-        G.soe_jokerhandsbutton.states.visible = true
-        G.soe_jokerhandsbutton.states.click.can = true
-        G.GAME.soe_joker_hands_available = true
-        G.GAME.soe_orbital_rate = 2
-    end,
-    unredeem = function()
-        G.soe_jokerhandsbutton.states.visible = false
-        G.soe_jokerhandsbutton.states.click.can = false
-        G.GAME.soe_joker_hands_available = false
-        G.GAME.soe_orbital_rate = 0
-    end
-}
-]]
-
-SMODS.Voucher{
-    key = 'rerolloverflow',
-    cost = 10,
-    atlas = 'VoucherSynonyms',
-    pos = {x = 0, y = 2},
-    unlocked = true,
-    discovered = true,
-    config = {extra = {discount = 25}},
-    loc_vars = function(_, _, card)
-        return {vars = {card.ability.extra.discount}}
-    end,
-    redeem = function(_, voucher)
-        voucher.ability.extra.thunk = G.GAME.soe_reroll_discount_percent
-        G.GAME.soe_reroll_discount_percent = voucher.ability.extra.discount
-        calculate_reroll_cost(true)
-    end,
-    unredeem = function(_, voucher)
-        G.GAME.soe_reroll_discount_percent = voucher.ability.extra.thunk
-        calculate_reroll_cost(true)
-    end
-}
-
-SMODS.Voucher{
-    key = 'legerdemain',
-    cost = 10,
-    atlas = 'VoucherSynonyms',
-    pos = {x = 4, y = 2},
-    unlocked = true,
-    discovered = true,
-}
-
-SMODS.Voucher{
-    key = 'phantasm',
-    cost = 10,
-    atlas = 'VoucherSynonyms',
-    pos = {x = 4, y = 3},
-    requires = {'v_soe_legerdemain'},
-    unlocked = true,
-    discovered = true,
-}
-
-SMODS.Voucher{
-    key = 'deception',
-    cost = 10,
-    atlas = 'Vouchers',
-    pos = {x = 8, y = 0},
-    requires = {'v_soe_phantasm'},
-    unlocked = true,
-    discovered = true,
-}
-
-local oldcalculatererollcost = calculate_reroll_cost
-function calculate_reroll_cost(...)
-    oldcalculatererollcost(...)
-    if G.GAME.soe_reroll_discount_percent > 0 then
-        G.GAME.current_round.reroll_cost = math.max(0, fl((G.GAME.current_round.reroll_cost + 0.5)*(100-G.GAME.soe_reroll_discount_percent)/100))
-    end
-end
-
 SMODS.Gradient{
     key = 'synonym_gradient',
     cycle = 5,
@@ -2627,9 +2729,9 @@ function SEALS.cache_context(card, center)
         if center.calculate then
             local copy = SEALS.copy_card_but_not(card, k, nil, true)
             --local func = function(t) return sc(t) end
-            --local fake_card = setmetatable({}, {__newindex = function() end, __call = func, __index = func, __add = func, __sub = func, __mul = func, __div = func, _mod = func, __pow = func, __eq = func, __lt = func, __le = func})
+            --local fake_card = setmetatable({}, {__newindex = function() end, __call = func, __index = func, __add = func, __sub = func, __mul = func, __div = func, __mod = func, __pow = func, __eq = func, __lt = func, __le = func})
             local anything
-            local fake_context = setmetatable({}, {__index = function(_, kk)
+            local fake_context = setmetatable({soe_fake_context = true}, {__index = function(_, kk)
                 G.soe_quantum_context_cache[k][#G.soe_quantum_context_cache[k]+1] = kk
                 anything = true
             end})
@@ -2644,10 +2746,11 @@ end
 local files = {
     {'consumeables',
         'vice.lua',
-        'orbital.lua',
+        --'orbital.lua',
         'phantom.lua'
     },
-    'jokers.lua'
+    'jokers.lua',
+    'vouchers.lua'
 }
 
 for _, file in ipairs(files) do
@@ -2687,15 +2790,8 @@ for i, v in ipairs({'normal', 'jumbo', 'mega'}) do
             return {vars = {cfg.choose, cfg.extra}}
         end,
         ease_background_colour = function()
-            ease_colour(G.C.DYN_UI.MAIN, SMODS.Gradients.soe_synonym_gradient)
-            ease_background_colour({new_colour = SMODS.Gradients.soe_synonym_gradient, special_colour = darken(G.C.BLACK, 0.2), contrast = 1.5})
-        end,
-        update_pack = function(self, ...)
-            SMODS.Booster.update_pack(self, ...)
-            if G.STATE_COMPLETE then
-                self:ease_background_colour()
-                if G.booster_pack_sparkles then G.booster_pack_sparkles.colours = {lighten(SMODS.Gradients.soe_synonym_gradient, 0.1), SMODS.Gradients.soe_synonym_gradient, darken(SMODS.Gradients.soe_synonym_gradient, 0.1)} end
-            end
+            ease_colour(G.C.DYN_UI.MAIN, HEX('2D5E5A'))
+            ease_background_colour({new_colour = HEX('2D5E5A'), special_colour = darken(G.C.BLACK, 0.2), contrast = 1.5})
         end,
         particles = function()
             G.booster_pack_sparkles = Particles(1, 1, 0, 0, {
@@ -2706,7 +2802,7 @@ for i, v in ipairs({'normal', 'jumbo', 'mega'}) do
                 speed = 1.1,
                 padding = -1,
                 attach = G.ROOM_ATTACH,
-                colours = { lighten(SMODS.Gradients.soe_synonym_gradient, 0.1), SMODS.Gradients.soe_synonym_gradient, darken(SMODS.Gradients.soe_synonym_gradient, 0.1) },
+                colours = { lighten(HEX('2D5E5A'), 0.1), HEX('2D5E5A'), darken(HEX('2D5E5A'), 0.1) },
                 fill = true
             })
             G.booster_pack_sparkles.fade_alpha = 1
@@ -2714,6 +2810,7 @@ for i, v in ipairs({'normal', 'jumbo', 'mega'}) do
         end,
         create_card = function()
             local _card = {area = G.pack_cards, skip_materialize = true, soulable = true, key_append = 'soe_synonympack'}
+            --[[
             if G.GAME.soe_joker_hands_available then
                 _card.set = SEALS.weighted_random({
                     soe_Synonyms = #G.P_CENTER_POOLS.soe_Synonyms,
@@ -2726,6 +2823,11 @@ for i, v in ipairs({'normal', 'jumbo', 'mega'}) do
                 soe_Phantom = #G.P_CENTER_POOLS.soe_Phantom,
                 soe_SynonymJokers = #G.P_CENTER_POOLS.soe_SynonymJokers,
             }, 'synonym_pack')
+            ]]
+            _card.set = SEALS.weighted_random({
+                soe_Synonyms = #G.P_CENTER_POOLS.soe_Synonyms,
+                soe_SynonymJokers = #G.P_CENTER_POOLS.soe_SynonymJokers,
+            }, 'synonym_pack')
             return _card
         end,
     }
@@ -2733,14 +2835,14 @@ end
 
 local oldsmodshasnorank = SMODS.has_no_rank
 function SMODS.has_no_rank(card)
-    if card.seal ~= 'soe_upgradedsoe_rainbowsealseal' then
+    if not card.base.id or card.seal ~= 'soe_upgradedsoe_rainbowsealseal' then
         return not card.base.id or oldsmodshasnorank(card)
     end
 end
 
 local oldsmodshasnosuit = SMODS.has_no_suit
 function SMODS.has_no_suit(card)
-    if card.seal ~= 'soe_upgradedsoe_rainbowsealseal' then
+    if not card.base.suit or card.seal ~= 'soe_upgradedsoe_rainbowsealseal' then
         return not card.base.suit or oldsmodshasnosuit(card)
     end
 end
@@ -2755,6 +2857,11 @@ end
 local oldsmodsalwaysscores = SMODS.always_scores
 function SMODS.always_scores(card)
     return card.config.center.set == 'Joker' or oldsmodsalwaysscores(card)
+end
+
+local oldsmodsshatters = SMODS.shatters
+function SMODS.shatters(card)
+    return card.soe_shatters or oldsmodsshatters(card)
 end
 
 local oldcardgetnominal = Card.get_nominal
@@ -2783,7 +2890,7 @@ end
 local oldgfuncscandiscard = G.FUNCS.can_discard
 G.FUNCS.can_discard = function(e)
     if SEALS.check_deck('inverse') then
-        if G.GAME.current_round.discards_left <= 0 or not G.jokers.highlighted[1] or #G.jokers.highlighted > math.max(G.GAME.starting_params.discard_limit, 0) then 
+        if G.GAME.current_round.discards_left <= 0 or not G.jokers.highlighted[1] or #G.jokers.highlighted > math.max(G.GAME.starting_params.discard_limit, 0) then
             e.config.colour = G.C.UI.BACKGROUND_INACTIVE
             e.config.button = nil
         else
@@ -2820,7 +2927,7 @@ G.FUNCS.soe_draw_from_joker_deck_to_jokers = function(e)
         local card = G.soe_joker_deck.cards[#G.soe_joker_deck.cards-n]
         local mod = unfixed and (card.ability.card_limit - card.ability.extra_slots_used) or 0
         if limit - 1 + mod < 0 then
-        else    
+        else
             limit = limit - 1 + mod
             cards_to_draw[#cards_to_draw+1] = card
             space_taken = space_taken + (1 - mod)
@@ -2996,7 +3103,7 @@ SMODS.Enhancement{
     end,
     set_ability = function(_, card)
         local oldbase = card.base
-        card.base = SEALS.add_metatable({soe_old_base = oldbase}, {__index = function(_, k, b)
+        card.base = setmetatable({soe_old_base = oldbase}, {__index = function(_, k, b)
             if not card.area or (b or 0) > #card.area.cards then return end
             local other_card = card.area.cards[card.rank+1]
             if not other_card then return end
@@ -3058,7 +3165,7 @@ SMODS.Enhancement{
     end,
     set_ability = function(_, card)
         local oldbase = card.base
-        card.base = SEALS.add_metatable({soe_old_base = oldbase}, {__index = function(_, k, b)
+        card.base = setmetatable({soe_old_base = oldbase}, {__index = function(_, k, b)
             if not card.area or (b or 0) > #card.area.cards then return end
             local other_card = card.area.cards[1]
             if other_card == card then return end
@@ -3131,7 +3238,7 @@ SMODS.Enhancement{
                 G.E_MANAGER:add_event(Event({
                     func = function()
                         local card = copy_card(pe(G.consumeables.cards, ps('perkeo')), nil)
-                        card:set_edition({negative = true}, true)
+                        card:set_edition('e_negative', true)
                         card:add_to_deck()
                         G.consumeables:emplace(card)
                         card:juice_up()
@@ -3332,7 +3439,7 @@ end
 local oldcalcseal = Card.calculate_seal
 function Card:calculate_seal(context)
     local seal = self.seal
-    if self.debuff or not seal then return end
+    if not seal then return end
     if not SEALS.is_in_area(self, 'playing_cards') then
         local obj = G.P_SEALS[self.seal]
         if obj.soe_jokercalculate and type(obj.soe_jokercalculate) == 'function' then
@@ -3357,41 +3464,41 @@ function Card:calculate_seal(context)
             return {dollars = 3, message_card = self}
         end
         if seal == 'Blue' and ((#G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit and context.end_of_round and context.main_eval) or context.forcetrigger) then
-            local card_type = 'Planet'
-            G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
-            G.E_MANAGER:add_event(Event({
-                trigger = 'before',
-                delay = 0.0,
-                func = (function()
-                    if G.GAME.last_hand_played then
-                        local _planet
-                        for _, v in ipairs(G.P_CENTER_POOLS.Planet) do
-                            if v.config.hand_type == G.GAME.last_hand_played then
-                                _planet = v.key
-                            end
-                        end
-                        local card = create_card(card_type,G.consumeables, nil, nil, nil, nil, _planet, 'blusl')
-                        card:add_to_deck()
-                        G.consumeables:emplace(card)
-                        G.GAME.consumeable_buffer = 0
-                    end
-                    return true
-                end)}))
-            return {message = localize('k_plus_planet'), colour = G.C.SECONDARY_SET.Planet}
-        end
-        if seal == 'Purple' and ((SEALS.check_deck('inverse') and (context.discard and context.other_card == self) or context.selling_self) or context.forcetrigger) then
-            if (#G.consumeables.cards + G.GAME.consumeable_buffer < (G.consumeables.config.card_limit + (self.area == G.consumeables and 1 or 0))) or context.forcetrigger then
+            return {message = localize('k_plus_planet'), colour = G.C.SECONDARY_SET.Planet, func = function()
+                G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
                 G.E_MANAGER:add_event(Event({
                     trigger = 'before',
                     delay = 0.0,
                     func = (function()
-                            local card = create_card('Tarot',G.consumeables, nil, nil, nil, nil, nil, '8ba')
-                            card:add_to_deck()
-                            G.consumeables:emplace(card)
+                        if G.GAME.last_hand_played then
+                            local _planet
+                            for _, v in ipairs(G.P_CENTER_POOLS.Planet) do
+                                if v.config.hand_type == G.GAME.last_hand_played then
+                                    _planet = v.key
+                                end
+                            end
+                            SMODS.add_card({set = 'Planet', key = _planet, key_append = 'blusl'})
                             G.GAME.consumeable_buffer = 0
+                        end
                         return true
-                    end)}))
-                return {message = localize('k_plus_tarot'), colour = G.C.PURPLE}
+                    end)
+                }))
+            end}
+        end
+        if seal == 'Purple' and ((SEALS.check_deck('inverse') and (context.discard and context.other_card == self) or context.selling_self) or context.forcetrigger) then
+            if (#G.consumeables.cards + G.GAME.consumeable_buffer < (G.consumeables.config.card_limit + (self.area == G.consumeables and 1 or 0))) or context.forcetrigger then
+                return {message = localize('k_plus_tarot'), colour = G.C.PURPLE, func = function()
+                    G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+                    G.E_MANAGER:add_event(Event({
+                        trigger = 'before',
+                        delay = 0.0,
+                        func = function()
+                            SMODS.add_card({set = 'Tarot', key_append = '8ba'})
+                            G.GAME.consumeable_buffer = 0
+                            return true
+                        end
+                    }))
+                end}
             end
         end
         if seal == 'soe_reverseseal' then
@@ -3399,9 +3506,9 @@ function Card:calculate_seal(context)
                 return {xmult = 3}
             end
         end
-        if seal == 'soe_carmineseal' or seal == 'phanta_ghostseal' then
+        if seal == 'soe_carmineseal' or seal == 'phanta_ghostseal' or seal == 'cry_green' then
             if context.before then
-                self.soe_scored = false
+                self.soe_scored = nil
             end
             if context.post_trigger and context.other_card == self then
                 self.soe_scored = true
@@ -3411,7 +3518,7 @@ function Card:calculate_seal(context)
                     if not SMODS.is_eternal(self, self) then
                         return {func = function() SMODS.destroy_cards(self) end}
                     end
-                else
+                elseif seal == 'phanta_ghostseal' then
                     return {
                         message = localize({type = 'variable', key = 'a_spectral', vars = {1}}),
                         colour = G.C.SECONDARY_SET.Spectral,
@@ -3429,6 +3536,16 @@ function Card:calculate_seal(context)
                             end)
                         end
                     }
+                else
+                    if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
+                        G.E_MANAGER:add_event(Event({
+                            func = function()
+                                SMODS.add_card({set = 'Code', key_append = 'cry_green_seal'})
+                                self:juice_up()
+                                return true
+                            end,
+                        }))
+                    end
                 end
             end
         end
@@ -3447,31 +3564,12 @@ function Card:calculate_seal(context)
                         end
                     end
                     for _=1, 3 do
-                        SMODS.add_card({key = _planet, edition = 'e_negative', key_append = 'cry_azure'})
+                        SMODS.add_card({set = 'Planet', key = _planet, edition = 'e_negative', key_append = 'cry_azure'})
                     end
                     return true
                 end
             }))
             SMODS.destroy_cards(self)
-        end
-        if seal == 'cry_green' then
-            if context.before then
-                self.soe_scored = false
-            end
-            if context.post_trigger and context.other_card == self then
-                self.soe_scored = true
-            end
-            if (not self.soe_scored and context.after) or context.forcetrigger then
-                if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
-                    G.E_MANAGER:add_event(Event({
-                        func = function()
-                            SMODS.add_card({set = 'Code', key_append = 'cry_green_seal'})
-                            self:juice_up()
-                            return true
-                        end,
-                    }))
-                end
-            end
         end
         if seal == 'crv_ps' then
             if (context.post_trigger and context.other_card == self) or context.forcetrigger then
@@ -3543,37 +3641,40 @@ function Card:calculate_seal(context)
             end
         end
         return
-    else
-        if seal == 'soe_reverseseal' then
-            if (context.main_scoring and (context.cardarea == G.play or context.cardarea == G.hand) and self.facing == 'back') or context.forcetrigger then
-                return {xmult = 3}
-            end
-        end
-        if seal == 'soe_carmineseal' then
-            if (context.cardarea == 'unscored' and context.destroy_card and context.destroy_card == self) or context.forcetrigger then
-                return {remove = true}
-            end
-        end
     end
     local g, post = oldcalcseal(self, context)
-    local hardcoded = SEALS.is_in_area(self, 'playing_cards') and (seal == 'Gold' or seal == 'Blue')
-    if (g or post or hardcoded) and not G.soe_retriggeringseals and SEALS.has_seal(self, 'soe_sealseal') then
-        G.soe_retriggeringseals = true
-        local effects = {g}
-        for _=1, SEALS.get_seal_count(self, 'soe_sealseal') do
-            if g or hardcoded then
-                effects[#effects+1] = {message = localize('k_again_ex')}
-            else
-                SMODS.calculate_effect({message = localize('k_again_ex')}, self)
-            end
-            if hardcoded then
-                effects[#effects+1] = SEALS.calculate_hardcoded_seals(self, context, seal)
-            else
-                effects[#effects+1] = self:calculate_seal(context)
+    local hardcoded = SEALS.is_in_area(self, 'playing_cards') and SEALS.calculate_hardcoded_seals(self, context, seal)
+    if (g or post or hardcoded) and not G.soe_retriggeringseals and not context.soe_retrigger_seal_check then
+        local retriggers = {}
+        local calc_return = {}
+        SMODS.calculate_context({soe_retrigger_seal_check = true, other_card = self, other_context = context, other_ret = g}, calc_return)
+        for _, v in pairs(calc_return) do
+            for _, vv in pairs(v) do
+                if vv.repetitions then
+                    retriggers[#retriggers+1] = {repetitions = vv.repetitions, card = vv.card}
+                end
             end
         end
-        g = SMODS.merge_effects(effects)
-        G.soe_retriggeringseals = nil
+        if retriggers[1] then
+            G.soe_retriggeringseals = true
+            local effects = {g}
+            for _, v in ipairs(retriggers) do
+                for _=1, v.repetitions do
+                    if g or hardcoded then
+                        effects[#effects+1] = {message = localize('k_again_ex'), message_card = v.card}
+                    else
+                        SMODS.calculate_effect({message = localize('k_again_ex')}, v.card or self)
+                    end
+                    if hardcoded then
+                        effects[#effects+1] = hardcoded
+                    else
+                        effects[#effects+1] = self:calculate_seal(context)
+                    end
+                end
+            end
+            g = SMODS.merge_effects(effects)
+            G.soe_retriggeringseals = nil
+        end
     end
     return g, post
 end
@@ -3672,15 +3773,18 @@ function Card:set_seal(_seal, silent, immediate)
     end
     if self.seal == 'soe_upgradedsoe_rainbowsealseal' then return end
     oldsetseal(self, _seal, silent, immediate)
-    if self.seal == 'soe_upgradedsoe_rainbowsealseal' then SEALS.recalc_quantum_editions(self) end
+    if self.seal == 'soe_upgradedsoe_rainbowsealseal' then
+        SEALS.recalc_quantum_editions(self)
+        SEALS.recalc_quantum_jokers(self)
+    end
 end
 
 local oldgetseal = Card.get_seal
 function Card:get_seal(bypass_debuff)
     if self.debuff and not bypass_debuff then return end
     if not self.seal then
-        local seals = SEALS.get_seals(self, true)[1]
-        if seals then return seals end
+        local seal = SEALS.get_seals(self, true)[1]
+        if seal then return seal end
     end
     return oldgetseal(self, bypass_debuff)
 end
@@ -3696,14 +3800,19 @@ function copy_card(other, ...)
             g.ability.extra_slots_used = g.ability.extra_slots_used - (config.extra_slots_used or 0)
         end
     end
+    if g.config.center_key == 'c_soe_placeholder' and g.ability.soe_legitimate then
+        g.states.visible = false
+        g.ability.soe_dont_emplace = true
+        g:start_dissolve()
+    end
     g.soe_from_copy = nil
     return g
 end
 
 local oldunhighlightall = CardArea.unhighlight_all
-function CardArea:unhighlight_all()
+function CardArea.unhighlight_all(...)
     if not (G.GAME.soe_usedconsumablehasredseal or G.GAME.soe_usingmergedconsumables) then
-        oldunhighlightall(self)
+        oldunhighlightall(...)
     end
 end
 
@@ -3740,7 +3849,7 @@ function Card:can_use_consumeable(a, skip_check)
     end
     local g = oldcanuseconsume(self, a, skip_check)
     if oldmaxhighlighted then
-        self.ability.max_highlighted, self.ability.consumeable.mod_num = oldmaxhighlighted, oldmaxhighlighted
+        self.ability.max_highlighted, self.ability.consumeable.mod_num, self.ability.consumeable.max_highlighted = oldmaxhighlighted, oldmaxhighlighted, oldmaxhighlighted
         if self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted then
             self.ability.extra.max_highlighted = oldmaxhighlighted
         end
@@ -3843,7 +3952,7 @@ function Card:use_consumeable(...)
         G.soe_redsealretriggering = nil
     end
     if oldmaxhighlighted then
-        self.ability.max_highlighted, self.ability.consumeable.mod_num = oldmaxhighlighted, oldmaxhighlighted
+        self.ability.max_highlighted, self.ability.consumeable.mod_num, self.ability.consumeable.max_highlighted = oldmaxhighlighted, oldmaxhighlighted, oldmaxhighlighted
         if self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted then
             self.ability.extra.max_highlighted = oldmaxhighlighted
         end
@@ -3867,14 +3976,76 @@ end
 
 local oldredeem = Card.redeem
 function Card:redeem()
-    if self.ability.set == 'Voucher' then
-        if SEALS.has_seal(self, 'Gold') then
-            local effects = {}
-            for _=1, SEALS.get_seal_count(self, 'Gold') do
-                effects[#effects+1] = {dollars = 3}
-            end
-            SMODS.calculate_effect(SMODS.merge_effects(effects), self)
+    if SEALS.has_seal(self, 'Gold') then
+        local effects = {}
+        for _=1, SEALS.get_seal_count(self, 'Gold') do
+            effects[#effects+1] = {dollars = 3}
         end
+        SMODS.calculate_effect(SMODS.merge_effects(effects), self)
+    end
+    if self.ability.set == 'Joker' then
+        stop_use()
+        if not self.config.center.discovered then
+            discover_card(self.config.center)
+        end
+        if self.shop_voucher then G.GAME.current_round.voucher.spawn[self.config.center_key] = false end
+        if self.from_tag then G.GAME.current_round.voucher.spawn[G.GAME.current_round.voucher[1]] = false end
+        G.STATE = G.STATES.SMODS_REDEEM_VOUCHER
+        self.states.hover.can = false
+        G.GAME.used_vouchers[self.config.center_key] = true
+        local top_dynatext
+        local bot_dynatext
+        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.4, func = function()
+                top_dynatext = DynaText({string = localize{type = 'name_text', set = self.config.center.set, key = self.config.center_key}, colours = {G.C.WHITE}, rotate = 1,shadow = true, bump = true,float=true, scale = 0.9, pop_in = 0.6/G.SPEEDFACTOR, pop_in_rate = 1.5*G.SPEEDFACTOR})
+                bot_dynatext = DynaText({string = localize('k_redeemed_ex'), colours = {G.C.WHITE}, rotate = 2,shadow = true, bump = true,float=true, scale = 0.9, pop_in = 1.4/G.SPEEDFACTOR, pop_in_rate = 1.5*G.SPEEDFACTOR, pitch_shift = 0.25})
+                self:juice_up(0.3, 0.5)
+                play_sound('card1')
+                play_sound('coin1')
+                local children = self.soe_realcard and self.soe_realcard.children or self.children
+                children.top_disp = UIBox{
+                    definition =    {n=G.UIT.ROOT, config = {align = 'tm', r = 0.15, colour = G.C.CLEAR, padding = 0.15}, nodes={
+                                        {n=G.UIT.O, config={object = top_dynatext}}
+                                    }},
+                    config = {align="tm", offset = {x=0,y=0},parent = self}
+                }
+                children.bot_disp = UIBox{
+                        definition =    {n=G.UIT.ROOT, config = {align = 'tm', r = 0.15, colour = G.C.CLEAR, padding = 0.15}, nodes={
+                                            {n=G.UIT.O, config={object = bot_dynatext}}
+                                        }},
+                        config = {align="bm", offset = {x=0,y=0},parent = self}
+                    }
+            return true end }))
+        if self.cost ~= 0 then
+            ease_dollars(-self.cost)
+            inc_career_stat('c_shop_dollars_spent', self.cost)
+        end
+        inc_career_stat('c_vouchers_bought', 1)
+        set_voucher_usage(self)
+        check_for_unlock({type = 'run_redeem'})
+        self:apply_to_run()
+        delay(0.6)
+        SMODS.calculate_context({buying_card = true, card = self})
+        if G.GAME.modifiers.inflation then
+            G.GAME.inflation = G.GAME.inflation + 1
+            G.E_MANAGER:add_event(Event({func = function()
+              for _, v in ipairs(G.I.CARD) do
+                  if v.set_cost then v:set_cost() end
+              end
+              return true end }))
+        end
+        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 2.6, func = function()
+            top_dynatext:pop_out(4)
+            bot_dynatext:pop_out(4)
+            return true end }))
+
+        G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.5, func = function()
+            local children = self.soe_realcard and self.soe_realcard.children or self.children
+            children.top_disp:remove()
+            children.top_disp = nil
+            children.bot_disp:remove()
+            children.bot_disp = nil
+        return true end }))
+        return
     end
     oldredeem(self)
 end
@@ -3899,8 +4070,8 @@ function Back:trigger_effect(args)
                 chips = chips or args.chips
                 mult = mult or args.mult
                 local tot = chips + mult
-                chips = math.floor(tot/2)
-                mult = math.floor(tot/2)
+                chips = fl(tot/2)
+                mult = fl(tot/2)
                 update_hand_text({delay = 0}, {mult = mult, chips = chips})
                 G.E_MANAGER:add_event(Event({
                     func = (function()
@@ -3918,7 +4089,7 @@ function Back:trigger_effect(args)
                             blockable = false,
                             blocking = false,
                             delay =  4.3,
-                            func = (function() 
+                            func = (function()
                                     ease_colour(G.C.UI_CHIPS, G.C.BLUE, 2)
                                     ease_colour(G.C.UI_MULT, G.C.RED, 2)
                                 return true
@@ -3930,7 +4101,7 @@ function Back:trigger_effect(args)
                             blocking = false,
                             no_delete = true,
                             delay =  6.3,
-                            func = (function() 
+                            func = (function()
                                 G.C.UI_CHIPS[1], G.C.UI_CHIPS[2], G.C.UI_CHIPS[3], G.C.UI_CHIPS[4] = G.C.BLUE[1], G.C.BLUE[2], G.C.BLUE[3], G.C.BLUE[4]
                                 G.C.UI_MULT[1], G.C.UI_MULT[2], G.C.UI_MULT[3], G.C.UI_MULT[4] = G.C.RED[1], G.C.RED[2], G.C.RED[3], G.C.RED[4]
                                 return true
@@ -4165,6 +4336,7 @@ function Game:start_run(args)
     G.soe_quantum_context_cache = {Gold = {'main_scoring', 'post_trigger'}, Blue = {'end_of_round'}}
     G.soe_cachedsavedobjects = {}
     G.soe_old_editions = {}
+    G.soe_old_jokers = {}
     oldgamestartrun(self, args)
     if SEALS.check_deck('merged', true) and not G.GAME.round_resets.soe_mergedblinds then
         reset_merged_blinds()
@@ -4193,6 +4365,7 @@ function Game:start_run(args)
             end
         }))
     end
+    --[[
 	self.soe_jokerhandsbutton = UIBox({
         definition = {n = G.UIT.ROOT, config = {align = 'cm', colour = G.C.CLEAR, minw = G.deck.T.w, minh = 0.5}, nodes = {{
             n = G.UIT.R, nodes = {{
@@ -4226,6 +4399,7 @@ function Game:start_run(args)
 		config = {major = G.deck, align = 'tm', offset = {x = 0, y = -0.85}, bond = 'Weak'}
 	})
     self.soe_jokerhandsbutton.states.visible = false
+    ]]
     self.jokers.config.highlighted_limit = 1000
     self.consumeables.config.highlighted_limit = 1000
 end
@@ -4253,6 +4427,9 @@ function SEALS:calculate(context)
             SMODS.calculate_effect({balance = true}, context.other_card)
         end
     end
+    if context.post_trigger and is(context.other_card, Card) and context.other_card.config.center.soe_pirated and SMODS.pseudorandom_probability(context.other_card, 'soe_pirated', 1, 100) then
+        SEALS.permanently_delete_center(context.other_card.config.center)
+    end
     if context.after and G.GAME.chips+SMODS.calculate_round_score() < G.GAME.blind.chips then
         SEALS.event(function()
             if SEALS.check_deck('inverse') then
@@ -4273,6 +4450,16 @@ end
 
 local oldstartdissolve = Card.start_dissolve
 function Card:start_dissolve(...)
+    if self.soe_using_card and self.ability.consumeable and G.hand.config.soe_old_highlighted_limit and SEALS.has_seal(self, 'soe_negativeseal') then
+        G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
+        G.hand.config.soe_old_highlighted_limit = nil
+        local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
+        if limit < count then
+            for i=count, limit+1, -1 do
+                G.hand:remove_from_highlighted(G.hand.highlighted[i])
+            end
+        end
+    end
     if SMODS.is_eternal(self) and self.playing_card then self.getting_sliced = nil; return end
     if SEALS.has_sticker(self, 'soe_epsilon') then self:remove() return end
     oldstartdissolve(self, ...)
@@ -4387,8 +4574,8 @@ function Card:calculate_joker(context)
         local oldmergedcard = G.soe_calculating_merged_cards
         G.soe_calculating_merged_cards = self
         for _, v in ipairs(self.ability.soe_mergedcards) do
-            local passed
-            if v.key then
+            local passed = not v.key or G.P_CENTERS[v.key].original_mod
+            if not passed then
                 local center = G.P_CENTERS[v.key]
                 cache_context(self, center)
                 passed = G.soe_quantum_context_cache[v.key] == true
@@ -4398,7 +4585,7 @@ function Card:calculate_joker(context)
                     end
                 end
             end
-            if passed or not v.key then
+            if passed then
                 local copy = SEALS.copy_card_but_not(self, v)
                 local my_pos, cards = self.rank, self.area and self.area.cards
                 if cards then
@@ -4410,7 +4597,7 @@ function Card:calculate_joker(context)
                     cards[my_pos] = self
                 end
                 local effects = {g}
-                if eval then effects[#effects+1] = eval end
+                effects[#effects+1] = eval
                 g = SMODS.merge_effects(effects)
             end
         end
@@ -4549,11 +4736,19 @@ SMODS.Scoring_Parameter:take_ownership('chips', {
 }, true)
 ]]
 
+local oldcardcancalculate = Card.can_calculate
+function Card:can_calculate(...)
+    if self.soe_realcard then
+        return self.soe_realcard:can_calculate(...)
+    end
+    return oldcardcancalculate(self, ...)
+end
+
 local oldevalcard = eval_card
 function eval_card(card, context)
     if context.extra_enhancement then return oldevalcard(card, context) end
     if SEALS.check_deck('inverse') and (card.ability.set ~= 'Enhanced' and card.ability.set ~= 'Default' and G.GAME.SEALS_Scoring_Active and not tc(context.scoring_hand or G.soe_scoring_hand, card)) then return {}, {} end
-    if not card:can_calculate(context.ignore_debuff, context.remove_playing_cards or context.joker_type_destroyed) then G.soe_from_eval_card = nil; return oldevalcard(card, context) end
+    if not card:can_calculate(context.ignore_debuff, context.remove_playing_cards or context.joker_type_destroyed) then return oldevalcard(card, context) end
     G.soe_from_eval_card = true
     local g, post = oldevalcard(card, context)
     if not G.soe_calculating_jokers_as_playing_cards and context.main_scoring and context.cardarea == G.play and (tc(SMODS.get_card_areas('playing_cards'), card.area) and (card.ability.set ~= 'Enhanced' and card.ability.set ~= 'Default' or SEALS.get_quantum_jokers(card)[1])) then
@@ -4588,7 +4783,7 @@ function eval_card(card, context)
         end
     end
     ]]
-    if not G.soe_calculating_joker_enhancements and next(SEALS.get_joker_enhancements(card)) and (context.joker_main or context.before or context.after or (context.end_of_round and context.main_eval)) then
+    if not G.soe_calculating_joker_enhancements and SEALS.get_joker_enhancements(card)[1] and (context.joker_main or context.before or context.after or (context.end_of_round and context.main_eval)) then
         G.soe_calculating_joker_enhancements = true
         local effects = {g.jokers}
         effects[#effects+1] = SEALS.calculate_joker_enhancements(card, context)
@@ -4616,18 +4811,18 @@ function eval_card(card, context)
         local oldmergedcard = G.soe_calculating_merged_cards
         G.soe_calculating_merged_cards = card
         for _, v in ipairs(card.ability.soe_mergedcards) do
-            local passed
-            if v.key then
+            local passed = not v.key or not G.P_CENTERS[v.key].original_mod
+            if not passed then
                 local center = G.P_CENTERS[v.key]
                 cache_context(card, center)
-                local passed = G.soe_quantum_context_cache[v.key] == true
+                passed = G.soe_quantum_context_cache[v.key] == true
                 if not passed then
                     for _, v in ipairs(G.soe_quantum_context_cache[v.key]) do
                         if context[v] then passed = true; break end
                     end
                 end
             end
-            if passed or not v.key then
+            if passed then
                 local copy = SEALS.copy_card_but_not(card, v)
                 local my_pos, cards = card.rank, card.area and card.area.cards
                 if cards then
@@ -4762,7 +4957,7 @@ function Card:click()
         Card.apply_to_run(nil, self.config.center)
         G.soe_blueprinting = nil
     end
-    if self.ability.soe_mergedcards and self.ability.soe_mergedcards[1] or self.config.center_key == 'j_soe_redfabric' then
+    if G.deck and self.facing == 'front' and (self.ability.soe_mergedcards and self.ability.soe_mergedcards[1] or self.config.center_key == 'j_soe_redfabric') then
         self.soe_clicks = (self.soe_clicks or 0)+1
         if self.soe_timer and self.soe_timer > 0 then
             if self.soe_clicks >= 3 then
@@ -4841,16 +5036,16 @@ function SEALS.perform_operations(val1, op, val2)
 end
 
 local oldsmodsgetprobabilityvars = SMODS.get_probability_vars
-function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominator, identifier, ...)
-    if is(trigger_obj, Card) then
+function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominator, identifier, a, no_mod)
+    if not no_mod and is(trigger_obj, Card) then
         local prevprobs, probmod = trigger_obj.ability.soe_previous_probabilities, trigger_obj.ability.soe_probability_modifier
         local id = identifier or 'soe_no_identifier'
-        if not prevprobs or not prevprobs[id] then
-            prevprobs = {}
-            trigger_obj.ability.soe_previous_probabilities = prevprobs
-            prevprobs[id] = {numerator = {value = base_numerator}, denominator = {value = base_denominator}}
-        end
-        local prevprobsid = prevprobs[id]
+        if not prevprobs then
+			prevprobs = {}
+			trigger_obj.ability.soe_previous_probabilities = prevprobs
+		end
+		local prevprobsid = prevprobs[id] or {numerator = {value = base_numerator}, denominator = {value = base_denominator}}
+        prevprobs[id] = prevprobsid
         if probmod then
             prevprobsid.numerator.changed = base_numerator ~= prevprobsid.numerator.value
             prevprobsid.denominator.changed = base_denominator ~= prevprobsid.denominator.value
@@ -4869,7 +5064,7 @@ function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominato
             end
         end
     end
-    return oldsmodsgetprobabilityvars(trigger_obj, base_numerator, base_denominator, identifier, ...)
+    return oldsmodsgetprobabilityvars(trigger_obj, base_numerator, base_denominator, identifier, a, no_mod)
 end
 
 SEALS.joker_value_exclusions = {
@@ -4885,23 +5080,28 @@ SEALS.joker_value_exclusions = {
     t_chips = 0,
     soe_frozen_snapshot = true,
     soe_mergedcards = true,
-    soe_quantum_stickers = true,
     soe_probability_modifier = true,
     soe_previous_probabilities = true,
-    soe_savedobjectvalues = true
+    soe_savedobjectvalues = true,
+    id = true,
+	suit_nominal = true,
+	base_nominal = true,
+	face_nominal = true,
+    suit_nominal_original = true,
+    times_played = true,
+    colour = true
 }
 
 if Cryptid then
     local blacklist = Cryptid.misprintize_value_blacklist
     blacklist.soe_frozen_snapshot = false
     blacklist.soe_mergedcards = false
-    blacklist.soe_quantum_stickers = false
     blacklist.soe_probability_modifier = false
     blacklist.soe_previous_probabilities = false
     blacklist.soe_savedobjectvalues = false
 end
 
-function SEALS.modify_joker_values(card, modifytbl, exclusions, ignoreimmutable, nodeckeffects)
+function SEALS.modify_card_values(card, modifytbl, exclusions, ignoreimmutable, nodeckeffects)
     if not card or not modifytbl or (SEALS.has_edition(card, 'e_soe_frozen') and not card.config.center.soe_frozen_immune) or (card.config.center.immutable and not ignoreimmutable) then return end
     local cardwasindeck = card.added_to_deck
     if not nodeckeffects and cardwasindeck then card:remove_from_deck(true) end
@@ -4921,9 +5121,24 @@ function SEALS.modify_joker_values(card, modifytbl, exclusions, ignoreimmutable,
             end
         end
     end
-    card:generate_UIBox_ability_table(true)
+    SEALS.get_loc_vars(card)
+    if card.ability.consumeable then
+        card.ability.consumeable = copy_table(card.ability.consumeable)
+    end
     for k in pairs(card.ability) do
         modify_value(card.ability, k, true)
+    end
+    if card.base then
+        for k in pairs(card.base) do
+            modify_value(card.base, k, true)
+        end
+    end
+    if card.ability.soe_mergedcards and card.ability.soe_mergedcards[1] then
+        for _, v in ipairs(card.ability.soe_mergedcards) do
+            for k in pairs(v.ability) do
+                modify_value(v.ability, k, true)
+            end
+        end
     end
     local probmod = card.ability.soe_probability_modifier or {}
     for _, v in ipairs(ops) do
@@ -4935,17 +5150,7 @@ function SEALS.modify_joker_values(card, modifytbl, exclusions, ignoreimmutable,
     card.ability.soe_probability_modifier = probmod
     if not nodeckeffects and cardwasindeck then card:add_to_deck(true) end
 end
-
-function SEALS.safe_get(t, ...)
-	local current = t
-	for _, k in ipairs({...}) do
-		if not current or current[k] == nil then
-			return
-		end
-		current = current[k]
-	end
-	return current
-end
+SEALS.modify_joker_values = SEALS.modify_card_values
 
 function SEALS.event(func, trigger, delay, blocking, blockable)
     G.E_MANAGER:add_event(Event({
@@ -5023,16 +5228,18 @@ function SEALS.forcetriggerseals(card)
         if SEALS.is_in_area(card, 'playing_cards') and (v == 'Gold' or v == 'Blue') then
             eval = SEALS.calculate_hardcoded_seals(card, context, v)
         elseif v == 'Purple' then
-            G.E_MANAGER:add_event(Event({
-                trigger = 'before',
-                delay = 0.0,
-                func = function()
-                    SMODS.add_card({set = 'Tarot', key_append = '8ba'})
-                    G.GAME.consumeable_buffer = 0
-                    return true
-                end
-            }))
-            eval = {message = localize('k_plus_tarot'), colour = G.C.PURPLE}
+            eval = {message = localize('k_plus_tarot'), colour = G.C.PURPLE, func = function()
+                G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+                G.E_MANAGER:add_event(Event({
+                    trigger = 'before',
+                    delay = 0.0,
+                    func = function()
+                        SMODS.add_card({set = 'Tarot', key_append = '8ba'})
+                        G.GAME.consumeable_buffer = 0
+                        return true
+                    end
+                }))
+            end}
         else
             eval = card:calculate_seal(context)
         end
@@ -5233,11 +5440,33 @@ end
 ]]
 
 function SEALS.check_deck(key, both)
-    local deck = G.GAME and G.GAME.selected_back and G.GAME.selected_back.effect and G.GAME.selected_back.effect.center and G.GAME.selected_back.effect.center.key == 'b_soe_'..key or key ~= 'true' and SEALS.check_deck('true')
+    if key == 'voucher' then return end
+    local deck = G.GAME and G.GAME.selected_back_key and G.GAME.selected_back_key.key == 'b_soe_'..key or key ~= 'true' and SEALS.check_deck('true')
     local sleeve = G.GAME and G.GAME.selected_sleeve == 'sleeve_soe_'..key or key ~= 'true' and SEALS.check_deck('true')
     if both == nil then return deck or sleeve end
     if both == false then return (deck and not sleeve) or (not deck and sleeve) end
     return deck and sleeve
+end
+
+function SEALS.get_loc_vars(card, center)
+    G.soe_getting_loc_vars = true
+    center = center or card.config.center
+    local other_card
+    if not card then
+        local config = center.config
+        local ability = copy_table(config)
+        ability.set = 'Joker'
+        ability.name = center.name
+        ability.x_mult = config.Xmult or config.x_mult
+        if ability.name == 'To Do List' then
+            ability.to_do_poker_hand = 'High Card'
+        end
+        other_card = {ability = ability, config = {center = center}, bypass_lock = true, fake_card = center.key}
+    end
+    local loc_vars, main_start, main_end = Card.generate_UIBox_ability_table(card or other_card)
+    G.soe_getting_loc_vars = nil
+    G.soe_modded_loc_vars = nil
+    return loc_vars, main_start, main_end
 end
 
 --[[
@@ -5259,15 +5488,7 @@ function SEALS.combine_effects(keys)
     local result_keys = {'first', 'played', 'face', 'scoring', 'in_hand', 'retriggers', 'end_of_round', 'destroy_self', 'card_destroyed', 'ranks', 'suits', 'poker_hands', 'mult', 'xmult', 'chips', 'xchips', 'chance'}
     for i, v in ipairs(keys) do
         result[i] = {}
-        local center = G.P_CENTERS[v]
-        local ability = copy_table(center.config)
-        ability.set = 'Joker'
-        ability.name = center.name
-        ability.x_mult = center.config.Xmult or center.config.x_mult
-        if ability.name == 'To Do List' then
-            ability.to_do_poker_hand = "High Card" -- fallback
-        end
-        local s = table.concat(localize({type = 'raw_descriptions', key = v, set = 'Joker', vars = Card.generate_UIBox_ability_table({ability = ability, config = {center = center}, bypass_lock = true}, true)}), ' '):lower()
+        local s = table.concat(localize({type = 'raw_descriptions', key = v, set = 'Joker', vars = SEALS.get_loc_vars(nil, G.P_CENTERS[v])}), ' '):lower()
         if s:find("first") then result[i].first = true end
         if s:find("played") then result[i].played = true end
         if s:find("face") then result[i].face = true end
@@ -5367,7 +5588,7 @@ function SEALS.combine_effects(keys)
     (f.individual and 'context.individual') or (f.retriggers and 'context.repetition') or 'nil',
     (f.played and ((f.scoring and 'G.play') or '\'unscored\'')) or (f.in_hand and 'G.hand'),
     (f.end_of_round and 'context.end_of_round') or 'true',
-    (f.first and ((f.face and "(function() for i, v in ipairs(context."..((f.scoring and 'scoring') or 'full')..'_hand) do if v:is_face() then return v end end end)()') or ("context."..((f.scoring and "scoring") or "full").."_hand[1]"))) or nil,
+    (f.first and ((f.face and "(function() for i, v in ipairs(context."..((f.scoring and 'scoring') or 'full')..'_hand) do if SEALS.face_check(v) then return v end end end)()') or ("context."..((f.scoring and "scoring") or "full").."_hand[1]"))) or nil,
     (f.ranks and f.ranks[1] and 'false') or 'true',
     '{'..table.concat(f.ranks or {}, ', ')..'}',
     (f.suits and f.suits[1] and 'false') or 'true',
@@ -5402,15 +5623,96 @@ function SEALS.is_return_entry_this_type(entry, type)
     end
 end
 
+function SEALS.permanently_delete_center(center, update)
+    local cards = {}
+    for _, v in ipairs(G.I.CARD) do
+        if is(v, Card) and v.config.center_key == center.key then
+            cards[#cards+1] = v.area
+            v.destroyed_by_gallowsbird = true
+            v:soe_no_touching3()
+        end
+    end
+    G.P_CENTERS[center.key] = nil
+    for i, v in ipairs(G.P_CENTER_POOLS.Joker) do
+        if v.key == center.key then
+            table.remove(G.P_CENTER_POOLS.Joker, i)
+            break
+        end
+    end
+    center.obj_table[center.key] = nil
+    for i, v in ipairs(center.obj_buffer) do
+        if v.key == center.key then
+            table.remove(center.obj_buffer, i)
+            break
+        end
+    end
+    if center.soe_id and not update then
+        SEALS.config.joker_requests[center.soe_id] = nil
+        NFS.remove(SEALS.path..'custom/'..center.soe_id..'.lua')
+    end
+    return cards
+end
+
 for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
-    for _, vv in pairs(v) do
+    for k, vv in pairs(v) do
+        if vv.set == 'Planet' and vv.config.hand_type then
+            SMODS.Joker{
+                key = k .. 'joker',
+                atlas = vv.atlas or 'Tarot',
+                prefix_config = {atlas = false},
+                pos = vv.pos,
+                rarity = 3,
+                soe_is_planet_joker = true,
+                soe_is_consumable_joker = true,
+                soe_planet_mod = vv.original_mod,
+                soe_planet_key = k,
+                loc_txt = {
+                    name =  ((not vv.original_mod) and localize({type = 'name_text', key = k, set = 'Planet'})..' Joker') or '',
+                    text = {
+                        'If played {C:attention}poker hand{} is',
+                        '{C:attention}#1#{}',
+                        'Upgrade played hand',
+                    },
+                },
+                cost = vv.cost*2,
+                unlocked = true,
+                discovered = true,
+                blueprint_compat = true,
+                eternal_compat = true,
+                perishable_compat = true,
+                no_collection = true,
+                config = {extra = {hand_type = vv.config.hand_type}},
+                loc_vars = function(_, _, card)
+                    return {vars = {localize(card.ability.extra.hand_type, 'poker_hands')}}
+                end,
+                calculate = function(_, card, context)
+                    if context.before and context.scoring_name == card.ability.extra.hand_type then
+                        return {
+                            level_up = true,
+                            message = localize('k_level_up_ex')
+                        }
+                    end
+                end,
+                in_pool = function()
+                    if SMODS.is_poker_hand_visible(vv.config.hand_type) then
+                        return true
+                    end
+                    return false
+                end,
+                set_badges = function(_, _, badges)
+                    if vv.original_mod ~= SEALS then
+                        badges[#badges+1] = SEALS.create_mod_badge(vv.original_mod)
+                    end
+                end
+            }
+        end
         if vv.set == 'Enhanced' then
-            if (vv.replace_base_card and vv.mod ~= SEALS) or vv.key == 'm_stone' then
+            if (vv.replace_base_card and not vv.soe_is_joker_enhancement) or k == 'm_stone' then
                 SMODS.Joker {
-                    key = (vv.key == 'm_stone' and 'stone' or vv.original_key or vv.key)..'cardjoker',
-                    atlas = vv.key == 'm_stone' and 'soe_EnhancementsForJokers' or vv.atlas,
+                    key = (k == 'm_stone' and 'stone' or vv.original_key or k)..'cardjoker',
+                    atlas = k == 'm_stone' and 'soe_EnhancementsForJokers' or vv.atlas,
                     prefix_config = {atlas = false},
-                    pos = vv.key == 'm_stone' and {x = 4, y = 0} or vv.pos,
+                    pos = k == 'm_stone' and {x = 4, y = 0} or vv.pos,
                     rarity = 3,
                     cost = 10,
                     unlocked = true,
@@ -5421,15 +5723,15 @@ for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
                     no_collection = true,
                     soe_is_enhancement_joker = true,
                     soe_enhancement_mod = vv.original_mod,
-                    soe_enhancement_key = vv.key,
-                    config = vv.key == 'm_stone' and {
+                    soe_enhancement_key = k,
+                    config = k == 'm_stone' and {
                         chips = 100
                     } or vv.config or nil,
                     loc_txt = {
-                        name =  ((not vv.original_mod) and localize({type = 'name_text', key = vv.key, set = 'Enhanced'})..' Joker') or '',
-                        text = ((not vv.original_mod) and (G.localization.descriptions.Enhanced[vv.key] or {}).text) or {''},
+                        name =  ((not vv.original_mod) and localize({type = 'name_text', key = k, set = 'Enhanced'})..' Joker') or '',
+                        text = ((not vv.original_mod) and (G.localization.descriptions.Enhanced[k] or {}).text) or {''},
                     },
-                    loc_vars = vv.key == 'm_stone' and function(_, _, card)
+                    loc_vars = k == 'm_stone' and function(_, _, card)
                         return {vars = {card.ability.chips}}
                     end or vv.loc_vars or nil,
                     add_to_deck = function(_, card)
@@ -5449,24 +5751,24 @@ for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
             end
         elseif vv.set == 'Voucher' then
             SMODS.Enhancement{
-                key = vv.key,
+                key = k,
                 loc_txt = {
-                    name = ((not vv.original_mod) and localize({type = 'name_text', key = vv.key, set = 'Voucher'})) or '',
-                    text = ((not vv.original_mod) and (G.localization.descriptions.Voucher[vv.key] or {}).text) or {''},
+                    name = ((not vv.original_mod) and localize({type = 'name_text', key = k, set = 'Voucher'})) or '',
+                    text = ((not vv.original_mod) and (G.localization.descriptions.Voucher[k] or {}).text) or {''},
                 },
                 loc_vars = (not vv.original_mod and function()
                     local ability = copy_table(vv.config)
                     ability.name = vv.name
-                    local loc_vars, main_start, main_end = Card.generate_UIBox_ability_table({ability = ability, config = {center = vv}}, true)
+                    local loc_vars, main_start, main_end = SEALS.get_loc_vars(nil, vv)
                     return {vars = loc_vars, main_start = main_start, main_end = main_end}
                 end) or vv.loc_vars or nil,
                 atlas = vv.atlas or 'Voucher',
-                vouchershader = true,
+                vouchershader = not vv.disable_shine,
                 prefix_config = {atlas = false},
                 no_collection = true,
                 soe_is_voucher_enhancement = true,
                 soe_voucher_mod = vv.mod,
-                soe_voucher_key = vv.key,
+                soe_voucher_key = k,
                 pos = vv.pos,
                 config = vv.config,
                 replace_base_card = true,
@@ -5476,8 +5778,9 @@ for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
                 calculate = function(_, _, context)
                     if context.main_scoring and context.cardarea == G.play then
                         return {message = localize('k_redeemed_ex'), func = function()
+                            G.GAME.used_vouchers[k] = true
                             Card.apply_to_run(nil, vv)
-                        end}
+                        end, extra = {chips = 10*(vv.requires and #vv.requires+1 or 1), mult = vv.requires and #vv.requires+1 or 1}}
                     end
                 end,
                 in_pool = function()
@@ -5489,38 +5792,36 @@ for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
 end
 
 function SEALS.set_joker_enhancement(card, center)
-    if not card or not center then return end
-    if type(center) == 'string' then
-        assert(G.P_CENTERS[center], ("Could not find center \"%s\""):format(center))
-        center = G.P_CENTERS[center]
+	if type(center) ~= 'table' then
+		assert(G.P_CENTERS[center], ('Could not find center "%s"'):format(center))
+		center = G.P_CENTERS[center]
+	end
+    if not G.soe_initial_adding and (center.replace_base_card or center.key == 'm_stone') then
+        local other_center = G.P_CENTERS['j_soe_'..(center.key == 'm_stone' and 'stone' or center.original_key or center.key)..'cardjoker']
+        if other_center then
+            card:set_ability(other_center)
+        end
     end
-    if not G.soe_initial_adding and (center.replace_base_card or center.key == 'm_stone') then card:set_ability('j_soe_'..(center.key == 'm_stone' and 'stone' or center.original_key or center.key)..'cardjoker') end
-    card.ability.soe_legalenhancements = card.ability.soe_legalenhancements or {}
-    card.ability.soe_legalenhancements[center.key] = card.ability.soe_legalenhancements[center.key] or {}
-    if SMODS.find_card('j_soe_sealjoker2')[1] then
-        card.ability.soe_legalenhancements[center.key][#card.ability.soe_legalenhancements[center.key]+1] = {}
+    local soe_legalenhancements = card.ability.soe_legalenhancements or {}
+    card.ability.soe_legalenhancements = soe_legalenhancements
+    if SEALS.is_eligible_for_property(card, 'joker_enhancement') then
+        soe_legalenhancements[#soe_legalenhancements+1] = center.key
     else
-        card.ability.soe_legalenhancements[center.key][1] = {}
+        soe_legalenhancements[1] = center.key
     end
-    local current = (SMODS.find_card('j_soe_sealjoker2')[1] and card.ability.soe_legalenhancements[center.key][#card.ability.soe_legalenhancements[center.key]]) or card.ability.soe_legalenhancements[center.key][1]
-    current.config = copy_table(center.config)
-    current.mod = center.mod and center.mod.id
 end
 
 function SEALS.get_joker_enhancements(card)
     local enhancements = copy_table(card.ability.soe_legalenhancements) or {}
-    if SEALS.counts_as_everything(card) then
+    if SEALS.counts_as_everything(card, 'joker_enhancement') then
         local counts = {}
-        for k, v in pairs(enhancements) do
-            if v[1] then
-                counts[k] = true
-            end
+        for _, v in ipairs(enhancements) do
+            counts[v] = true
         end
         for _, v in ipairs(G.P_CENTER_POOLS.Enhanced) do
             local k = v.key
             if not counts[k] then
-                enhancements[k] = enhancements[k] or {}
-                enhancements[k][#enhancements[k]+1] = {config = copy_table(v.config), mod = v.mod and v.mod.id}
+                enhancements[#enhancements+1] = k
             end
         end
     end
@@ -5529,44 +5830,40 @@ end
 
 function SEALS.calculate_joker_enhancements(card, context)
     local enhancements = SEALS.get_joker_enhancements(card)
-    if not card or not next(enhancements) then return end
+    if not card or not enhancements[1] then return end
     local other_context = sc(context)
     other_context.main_scoring = context.joker_main
     other_context.destroy_card = context.after and card
     other_context.playing_card_end_of_round = context.end_of_round
     local effects = {}
-    for k, v in pairs(enhancements) do
-        for _=1, #v do
-            local enhancement
-            local areas, i = {G.play, G.hand}, 1
-            repeat
-                other_context.cardarea = areas[i]
-                local true_effects = {}
-                SEALS.calculate_quantum_enhancements(card, true_effects, other_context, k)
-                local eval = true_effects[1]
-                if eval then
-                    local other_effects = {}
-                    if eval.playing_card then other_effects[#other_effects+1] = eval.playing_card end
-                    if eval.enhancement then other_effects[#other_effects+1] = eval.enhancement end
-                    if eval.end_of_round then other_effects[#other_effects+1] = eval.end_of_round end
+    for _, v in ipairs(enhancements) do
+        local enhancement
+        local areas, i = {G.play, G.hand}, 1
+        repeat
+            other_context.cardarea = areas[i]
+            local true_effects = {}
+            SEALS.calculate_quantum_enhancements(card, true_effects, other_context, v)
+            local eval = true_effects[1]
+            if eval then
+                local other_effects = {eval.playing_card}
+                other_effects[#other_effects+1] = eval.enhancement
+                other_effects[#other_effects+1] = eval.end_of_round
+                if other_effects[1] then
                     enhancement = SMODS.merge_effects(other_effects)
                 end
-                i=i+1
-            until enhancement or not areas[i]
-            if enhancement then
-                if other_context.destroy_card and enhancement.remove then
-                    effects[#effects+1] = {func = function()
-                        local oldsmodsshatters = SMODS.shatters
-                        function SMODS.shatters(card2)
-                            if card2 == card and (G.P_CENTERS[k].shatters or k == 'm_glass') then return true end
-                            return oldsmodsshatters(card)
-                        end
-                        SMODS.destroy_cards(card)
-                        SMODS.shatters = oldsmodsshatters
-                    end}
-                else
-                    effects[#effects+1] = enhancement
-                end
+            end
+            i=i+1
+        until enhancement or not areas[i]
+        if enhancement then
+            if other_context.destroy_card and enhancement.remove then
+                effects[#effects+1] = {func = function()
+                    if v == 'm_glass' or G.P_CENTERS[v].shatters then
+                        card.soe_shatters = true
+                    end
+                    SMODS.destroy_cards(card)
+                end}
+            else
+                effects[#effects+1] = enhancement
             end
         end
     end
@@ -5896,9 +6193,12 @@ function SEALS.calculate_joker_as_playing_card(card, context, quantum)
     return SMODS.merge_effects(effects)
 end
 
-function SEALS.merge_cards(card1, cards, instant, nodeckeffects)
+function SEALS.merge_cards(cards, instant, nodeckeffects)
+    local card1 = table.remove(cards, 1)
     card1.ability.soe_mergedcards = card1.ability.soe_mergedcards or {}
     for _, card in ipairs(cards) do
+        local oldmergedcards = card.ability.soe_mergedcards
+        card.ability.soe_mergedcards = nil
         local mergedcard = {
             key = not (card.config.center.set == 'Enhanced' or card.config.center.set == 'Default') and card.config.center_key or nil,
             enhancement = card.config.center.set == 'Enhanced' and card.config.center_key or nil,
@@ -5916,8 +6216,8 @@ function SEALS.merge_cards(card1, cards, instant, nodeckeffects)
                 mergedcard.stickers[#mergedcard.stickers+1] = v
             end
         end
-        if card.ability.soe_mergedcards and card.ability.soe_mergedcards[1] then
-            for _, v in ipairs(card.ability.soe_mergedcards) do
+        if oldmergedcards and oldmergedcards[1] then
+            for _, v in ipairs(oldmergedcards) do
                 card1.ability.soe_mergedcards[#card1.ability.soe_mergedcards+1] = copy_table(v)
             end
         end
@@ -6133,11 +6433,9 @@ if SEALS.find_mod('YGGDRASIL') then
     )
 end
 
---assert(SMODS.load_file('allinone.lua'))()
 assert(SMODS.load_file('bigfuncs.lua'))()
 
 SMODS.Joker{
-    name = 'AscendedJoker',
     key = 'ascendedjoker',
     atlas = 'Joker',
     prefix_config = {atlas = false},
@@ -6150,195 +6448,31 @@ SMODS.Joker{
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {},
     add_to_deck = function(_, card)
-        for _, v in ipairs(SEALS.get_quantum_jokers(card)) do
-            SEALS.copy_card_but_not(card, v)
-        end
+        SEALS.recalc_quantum_jokers(card)
     end,
     in_pool = function()
         return false
     end
 }
 
---[[
-SMODS.Joker{
-    name = 'Seeder',
-    key = 'seeder',
-    atlas = 'Placeholders',
-    pos = {x = 2, y = 0},
-    rarity = 3,
-    cost = 15,
-    unlocked = true,
-    discovered = true,
-    blueprint_compat = false,
-    eternal_compat = true,
-    perishable_compat = true,
-    config = {
-        extra = {
-            seed = "2K9H9HN",
-            runnable = true
-        }
-    },
-    loc_vars = function(self,info_queue,card)
-        return {vars = {card.ability.extra.seed}}
-    end,
-    calculate = function(self, card, context)
-        if context.end_of_round and context.main_eval and context.game_over == false and G.GAME.blind.boss then
-            if not card.ability.extra.runnable then
-                card.ability.extra.runnable = true
-                return {
-                    message = localize('k_reset'),
-                }
-            end
-        end
-        if context.using_consumeable and card.ability.extra.runnable then
-            G.ENTERED_SEED = ""
-            G.E_MANAGER:add_event(Event({
-				blockable = false,
-				func = function()
-					G.REFRESH_ALERTS = true
-					return true
-				end,
-			}))
-			G.UIBOXGENERICOPTIONSREALLYSEED = create_UIBox_generic_options({
-				no_back = true,
-				colour = HEX("04200c"),
-				outline_colour = G.C.SECONDARY_SET.Code,
-				contents = {
-					{
-						n = G.UIT.R,
-						nodes = {
-							create_text_input({
-								colour = G.C.SET.Code,
-								hooked_colour = darken(copy_table(G.C.SET.Code), 0.3),
-								w = 4.5,
-								h = 1,
-								max_length = 8,
-								extended_corpus = true,
-								prompt_text = "ENTER A SEED",
-								ref_table = G,
-								ref_value = "ENTERED_SEED",
-								keyboard_offset = 1,
-							}),
-						},
-					},
-					{
-						n = G.UIT.R,
-						config = { align = "cm" },
-						nodes = {
-							UIBox_button({
-								colour = G.C.SET.Code,
-								button = "seed_apply",
-								label = {"SEED"},
-								minw = 4.5,
-								focus_args = { snap_to = true },
-							}),
-						},
-					},
-				},
-			})
-            G.UIBOXFORSEED = UIBox({
-                definition = G.UIBOXGENERICOPTIONSREALLYSEED,
-                config = {
-                    align = "cm",
-                    offset = { x = 0, y = 10 },
-                    major = G.ROOM_ATTACH,
-                    bond = "Weak",
-                    instance_type = "POPUP",
-                },
-            })
-            G.UIBOXFORSEED.alignment.offset.y = 0
-            G.ROOM.jiggle = G.ROOM.jiggle + 1
-            G.UIBOXFORSEED:align_to_major()
-            G.FUNCS.seed_apply = function()
-                G.ENTERED_SEED = string.upper(G.ENTERED_SEED) or "r"
-                card.ability.extra.runnable = false
-                card.ability.extra.seed = G.ENTERED_SEED
-                G.GAME.pseudorandom.seed = G.ENTERED_SEED
-                G.GAME.pseudorandom.hashed_seed = pseudohash(G.GAME.pseudorandom.seed)
-                G.UIBOXFORSEED:remove()
-            end
-        end
-    end,
-    in_pool = function(self)
-        return false
-    end
-}
-]]
-
---[[
-if Bakery_API and Bakery_API.Charm then
-    Bakery_API.Charm {
-        key = 'sealcharm',
-        atlas = 'Charms',
-        pos = {x = 0, y = 0},
-        config = {},
-        loc_vars = function(self, info_queue, card) end,
-        calculate = function(self, card, context) end, -- Works just like a Joker
-        check_for_unlock = function(self, args) end,
-        equip = function(self, card) 
-            G.GAME.red_seal_number = 2
-            G.GAME.gold_seal_dollar = 6
-        end, -- Called when the charm is purchased
-        unequip = function(self, card)
-            G.GAME.red_seal_number = 1
-            G.GAME.gold_seal_dollar = 3
-        end, -- Called when a new charm is purchased that replaces this one
-    }
-end
-]]
-
-for _, c in ipairs({G.P_CENTERS, SMODS.Planet.obj_table}) do
-    for k, v in pairs(c) do
-        if v.set == 'Planet' and v.config.hand_type then
-            SMODS.Joker{
-                key = k .. 'joker',
-                atlas = v.atlas or 'Tarot',
-                prefix_config = {atlas = false},
-                pos = v.pos,
-                rarity = 3,
-                soe_is_planet_joker = true,
-                soe_planet_mod = v.original_mod,
-                soe_planet_key = k,
-                loc_txt = {
-                    name =  ((not v.original_mod) and localize({type = 'name_text', key = k, set = 'Planet'})..' Joker') or '',
-                    text = {
-                        "If played {C:attention}poker hand{} is",
-                        "{C:attention}#1#{}",
-                        "Upgrade played hand",
-                    },
-                },
-                cost = v.cost*2,
-                unlocked = true,
-                discovered = true,
-                blueprint_compat = true,
-                eternal_compat = true,
-                perishable_compat = true,
-                no_collection = true,
-                config = {extra = {hand_type = v.config.hand_type}},
-                loc_vars = function(_, _, card)
-                    return {vars = {localize(card.ability.extra.hand_type, 'poker_hands')}}
-                end,
-                calculate = function(_, card, context)
-                    if context.before and context.scoring_name == card.ability.extra.hand_type then
-                        return {
-                            level_up = true,
-                            message = localize('k_level_up_ex')
-                        }
-                    end
-                end,
-                in_pool = function()
-                    if SMODS.is_poker_hand_visible(v.config.hand_type) then
-                        return true
-                    end
-                    return false
-                end,
-                set_badges = function(_, _, badges)
-                    if v.mod ~= SEALS then
-                        badges[#badges+1] = SEALS.create_mod_badge(v.mod)
+local oldsmodspopulateattributes = SMODS.populate_attributes
+function SMODS.populate_attributes()
+    oldsmodspopulateattributes()
+    if G.P_CENTERS.j_soe_ascendedjoker then
+        local attributes = G.P_CENTERS.j_soe_ascendedjoker.attributes
+        for _, v in ipairs(G.P_CENTER_POOLS.Joker) do
+            if not v.original_mod then
+                if v.attributes then
+                    for k in pairs(v.attributes) do
+                        if SMODS.Attributes[k] then
+                            attributes[k] = true
+                        end
                     end
                 end
-            }
+                if v.key == 'j_perkeo' then break end
+            end
         end
     end
 end
@@ -6425,20 +6559,19 @@ SMODS.Joker{
 SMODS.DrawStep {
     key = 'souljoker',
     order = 50,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self.config.center_key == 'j_soe_c_souljoker' and (self.config.center.discovered or self.bypass_discovery_center) then
-            local scale_mod = 0.05 + 0.05 * math.sin(1.8 * G.TIMERS.REAL) + 0.07 * math.sin((G.TIMERS.REAL - math.floor(G.TIMERS.REAL)) * math.pi * 14) * (1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL))) ^ 3
-            local rotate_mod = 0.1 * math.sin(1.219 * G.TIMERS.REAL) + 0.07 * math.sin((G.TIMERS.REAL) * math.pi * 5) * (1 - (G.TIMERS.REAL - math.floor(G.TIMERS.REAL))) ^ 2
+            local scale_mod = 0.05 + 0.05 * math.sin(1.8 * G.TIMERS.REAL) + 0.07 * math.sin((G.TIMERS.REAL - fl(G.TIMERS.REAL)) * math.pi * 14) * (1 - (G.TIMERS.REAL - fl(G.TIMERS.REAL))) ^ 3
+            local rotate_mod = 0.1 * math.sin(1.219 * G.TIMERS.REAL) + 0.07 * math.sin((G.TIMERS.REAL) * math.pi * 5) * (1 - (G.TIMERS.REAL - fl(G.TIMERS.REAL))) ^ 2
             G.shared_soul.role.draw_major = self
             G.shared_soul:draw_shader('dissolve', 0, nil, nil, self.children.center, scale_mod, rotate_mod, nil, 0.1 + 0.03 * math.sin(1.8 * G.TIMERS.REAL), nil, 0.6)
             G.shared_soul:draw_shader('dissolve', nil, nil, nil, self.children.center, scale_mod, rotate_mod)
         end
-    end,
-    conditions = {vortex = false, facing = 'front'},
+    end
 }
 
 SMODS.Joker{
-    name = 'BlankJoker',
     key = 'v_blankjoker',
     atlas = 'Vouchers',
     pos = {x = 7, y = 0},
@@ -6486,7 +6619,6 @@ SMODS.Edition:take_ownership('e_negative', {
 }, true)
 
 SMODS.Joker{
-    name = 'AntimatterJoker',
     key = 'v_antimatterjoker',
     atlas = 'Vouchers',
     pos = {x = 7, y = 1},
@@ -6523,7 +6655,7 @@ SMODS.DrawStep{
     key = 'boostershader',
     order = 10,
     func = function(self)
-        if self.config.center.boostershader or self.ability.set == 'soe_Phantom' and self.config.center_key ~= 'c_soe_cannotfinditemwithkeyc_deja_vu' then
+        if self.config.center.boostershader or self.ability.set == 'soe_Phantom' and self.config.center_key ~= 'c_soe_cannotfinditemwithkeyc_deja_vu' and self.config.center_key ~= 'c_soe_placeholder' then
             self.children.center:draw_shader('booster',nil, self.ARGS.send_to_shader)
         end
     end
@@ -6533,6 +6665,7 @@ SMODS.DrawStep{
 SMODS.DrawStep{
     key = 'editionshaders',
     order = 21,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self and self.edition and self.ability and self.ability.soe_quantum_editions then
             for k, v in pairs(self.ability.soe_quantum_editions) do
@@ -6541,14 +6674,14 @@ SMODS.DrawStep{
                 end
             end
         end
-    end,
-    conditions = {vortex = false, facing = 'front'},
+    end
 }
 ]]
 
 SMODS.DrawStep{
     key = 'vouchershader',
     order = 20,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self.config.center.vouchershader or self.ability.soe_detached_seal == 'Gold' then
             self.children.center:draw_shader('voucher',nil, self.ARGS.send_to_shader)
@@ -6559,6 +6692,7 @@ SMODS.DrawStep{
 SMODS.DrawStep{
     key = 'negativeshader',
     order = 20,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self.config.center.negativeshader then
             self.children.center:draw_shader('negative',nil, self.ARGS.send_to_shader)
@@ -6592,7 +6726,7 @@ SMODS.Joker{
         return {vars = {card.ability.extra.xmult}}
     end,
     calculate = function(_, card, context)
-        if context.other_main and (context.other_main:get_seal() or (context.other_joker.ability.soe_legalenhancements and next(context.other_joker.ability.soe_legalenhancements)) or context.other_joker.ability.legallysleeve) then
+        if context.other_main and (context.other_main.ability.soe_legalenhancements and context.other_main.ability.soe_legalenhancements[1] or context.other_main.ability.legallysleeve or context.other_main:get_seal()) then
             return {x_mult = card.ability.extra.xmult}
         end
         if context.individual then
@@ -6747,10 +6881,14 @@ SMODS.Joker{
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = false,
-    loc_vars = function(_, info_queue)
-        info_queue[#info_queue+1] = {key = 'soe_seal_fuse', set = 'Other', vars = {colours = {G.P_SEALS.soe_upgradedsoe_rainbowsealseal.badge_colour}}}
-        info_queue[#info_queue+1] = G.P_CENTERS.j_soe_infinityomega
+    --[[
+    loc_vars = function(_, info_queue, card)
+        if not card.fake_card then
+            info_queue[#info_queue+1] = {key = 'soe_seal_fuse', set = 'Other', vars = {colours = {G.P_SEALS.soe_upgradedsoe_rainbowsealseal.badge_colour}}}
+            info_queue[#info_queue+1] = G.P_CENTERS.j_soe_infinityomega
+        end
     end,
+    ]]
     in_pool = function()
         return false
     end
@@ -6760,8 +6898,8 @@ local oldauracanuse = G.P_CENTERS.c_aura.can_use
 SMODS.Spectral:take_ownership('c_aura',
     {
         can_use = function(self, card)
-            if SMODS.find_card('j_soe_sealjoker2')[1] then
-                return G.hand and #G.hand.highlighted == 1
+            if G.hand and #G.hand.highlighted == 1 and G.hand.highlighted[1].edition and SEALS.is_eligible_for_property(self, 'edition') then
+                return true
             else
                 if oldauracanuse then
                     return oldauracanuse(self, card)
@@ -6907,51 +7045,91 @@ function SEALS.get_card_name(card, ui, vars)
     end
 end
 
-if has_cryptid and Talisman then
-    SMODS.Joker{
-        key = 'thinkingemoji',
-        atlas = 'Think',
-        pos = {x = 0, y = 0},
-        soul_pos = {x = 1, y = 0},
-        config = {extra = {emult_mod = 0.2, idea_count = 19, sealemult = 2.2}},
-        rarity = "cry_exotic",
-        cost = 62,
-        unlocked = true,
-        discovered = true,
-        blueprint_compat = true,
-        eternal_compat = true,
-        perishable_compat = false,
-        loc_vars = function(_, _, card)
-            return {vars = {card.ability.extra.emult_mod, card.ability.extra.emult or (1 + (card.ability.extra.emult_mod*card.ability.extra.idea_count)), card.ability.extra.sealemult}}
-        end,
-        calculate = function(_, card, context)
-            if context.joker_main then
-                card.ability.extra.emult = 1 + (card.ability.extra.emult_mod*card.ability.extra.idea_count)
-                return {emult = card.ability.extra.emult}
+SMODS.Joker{
+    key = 'thinkingemoji',
+    atlas = 'Exotics',
+    pos = {x = 2, y = 0},
+    soul_pos = {x = 3, y = 0},
+    config = {extra = {idea_count = 19, xmult_mod = 1, emult_mod = 0.2, sealxmult = 5, sealemult = 2.2}},
+    rarity = has_cryptid and 'cry_exotic' or 4,
+    cost = 62,
+    unlocked = true,
+    discovered = true,
+    blueprint_compat = true,
+    eternal_compat = true,
+    perishable_compat = false,
+    loc_vars = function(_, info_queue, card)
+        info_queue[#info_queue+1] = {key = 'te_soe_seals_on_everything_ability', set = 'Other', vars = {has_cryptid and card.ability.extra.sealemult or card.ability.extra.sealxmult}}
+        if Yorick then
+            info_queue[#info_queue+1] = {key = 'te_soe_yorick_ability', set = 'Other', vars = {1}}
+        end
+        if JESTERPROJECT then
+            info_queue[#info_queue+1] = {key = 'te_soe_the_jester_project_ability', set = 'Other'}
+        end
+        if SEALS.find_mod('UnusedBalatroMod') then
+            info_queue[#info_queue+1] = {key = 'te_soe_unused_balatro_mod_ability', set = 'Other'}
+        end
+        if Ascensio then
+            info_queue[#info_queue+1] = {key = 'te_soe_ascensio_ability', set = 'Other'}
+        end
+        if SEALS.find_mod('SoulEverything') then
+            info_queue[#info_queue+1] = {key = 'te_soe_souleverything_ability', set = 'Other'}
+        end
+        return {vars = {has_cryptid and card.ability.extra.emult_mod or card.ability.extra.xmult_mod, 1+((has_cryptid and card.ability.extra.emult_mod or card.ability.extra.xmult_mod)*card.ability.extra.idea_count), colours = {HEX('9B0B00')}}}
+    end,
+    calculate = function(_, card, context)
+        if context.joker_main then
+            local effects = {}
+            if has_cryptid then
+                effects[#effects+1] = {emult = 1+(card.ability.extra.emult_mod*card.ability.extra.idea_count)}
+            else
+                effects[#effects+1] = {xmult = 1+(card.ability.extra.xmult_mod*card.ability.extra.idea_count)}
             end
-            if context.other_main and context.other_main ~= card then
-                local key, set = context.other_main.config.center_key, context.other_main.config.center.set
-                local name = localize({type = 'name_text', key = key, set = set})
-                local description = ''
-                if type(G.localization.descriptions[set][key].text[1]) == 'string' then
-                    description = table.concat(G.localization.descriptions[set][key].text, " ")
-                elseif type(G.localization.descriptions[set][key].text[1]) == 'table' then
-                    for _, v in ipairs(G.localization.descriptions[set][key].text) do
-                        description = description..table.concat(v, ' ')
+            if Yorick then
+                for _, v in ipairs(context.full_hand) do
+                    local count = v.ability.immutable.yorick_amount
+                    if count > 1 then
+                        effects[#effects+1] = {xmult = count, message_card = v, juice_card = card}
                     end
                 end
-                local searchline = name..description
-                searchline = string.gsub(searchline, '{[^}]+}', '')
-                searchline = string.gsub(searchline, '#[^#]+#', '')
-                searchline = string.gsub(searchline, '{}', '')
-                searchline = string.lower(searchline)
-                if searchline:match('seal') then
-                    return {emult = card.ability.extra.sealemult}
+                for _, v in ipairs(G.hand.cards) do
+                    local count = v.ability.immutable.yorick_amount
+                    if count > 1 then
+                        effects[#effects+1] = {xmult = count, message_card = v, juice_card = card}
+                    end
                 end
             end
+            if effects[1] then
+                return SMODS.merge_effects(effects)
+            end
         end
-    }
-end
+        if context.other_main and context.other_main ~= card then
+            local effects = {}
+            local key, set = context.other_main.config.center_key, context.other_main.config.center.set
+            if Yorick then
+                local count = #SMODS.find_card(key, true)
+                if count > 1 then
+                    effects[#effects+1] = {xmult = count}
+                end
+            end
+            local searchline = localize({type = 'name_text', key = key, set = set})..table.concat(localize({type = 'raw_descriptions', key = key, set = set, vars = {}}), ' ')
+            searchline = string.gsub(searchline, '{[^}]+}', '')
+            searchline = string.gsub(searchline, '#[^#]+#', '')
+            searchline = string.gsub(searchline, '{}', '')
+            searchline = string.lower(searchline)
+            if searchline:match('seal') then
+                if has_cryptid then
+                    effects[#effects+1] = {emult = card.ability.extra.sealemult}
+                else
+                    effects[#effects+1] = {xmult = card.ability.extra.sealxmult}
+                end
+            end
+            if effects[1] then
+                return SMODS.merge_effects(effects)
+            end
+        end
+    end
+}
 
 SMODS.Rarity{
     key = 'infinity',
@@ -6960,8 +7138,8 @@ SMODS.Rarity{
         colours = {
             HEX('E8463D'),
             HEX('009CFD'),
-            HEX('A267E4'),
             HEX('F7AF38'),
+            HEX('A267E4')
         }
     },
 }
@@ -7054,12 +7232,7 @@ SMODS.Joker{
                     func = function()
                         local other_card = context.other_card
                         SEALS.event(function()
-                            local enhancements, seals, editions = card.ability.soe_quantum_enhancements, card.ability.soe_quantum_seals, {'negative'}
-                            if card.ability.soe_quantum_editions and card.ability.soe_quantum_editions[1] then
-                                for _, v in ipairs(card.ability.soe_quantum_editions) do
-                                    editions[#editions+1] = v
-                                end
-                            end
+                            local enhancements, seals, editions = card.ability.soe_quantum_enhancements, card.ability.soe_quantum_seals, card.ability.soe_quantum_editions
                             local newcard = SMODS.add_card({key = 'j_joker', seal = seals and seals[1], edition = 'e_negative'})
                             if enhancements and enhancements[1] and G.P_CENTERS[enhancements[1]] and (G.P_CENTERS[enhancements[1]].replace_base_card or enhancements[1] == 'm_stone') then
                                 newcard:set_ability('j_soe_'..(enhancements[1] == 'm_stone' and 'stone' or G.P_CENTERS[enhancements[1]].original_key or enhancements[1])..'cardjoker')
@@ -7166,6 +7339,7 @@ SMODS.Joker{
     end
 }
 
+--[[
 SMODS.Joker{
     key = 'infinityomega',
     atlas = 'InfinitySeals',
@@ -7178,6 +7352,7 @@ SMODS.Joker{
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = false,
+    soe_set_variable_when_obtained = true,
     add_to_deck = function(_, card, from_debuff)
         if not from_debuff and SEALS.find_mod('jen') then
             play_sound('jen_omegacard', 1, 0.4)
@@ -7188,6 +7363,7 @@ SMODS.Joker{
             for _, v in ipairs(G.I.CARD) do
                 if v.ability then
                     SEALS.recalc_quantum_editions(v)
+                    SEALS.recalc_quantum_jokers(v)
                 end
             end
             return true
@@ -7197,6 +7373,7 @@ SMODS.Joker{
         return false
     end
 }
+]]
 
 if has_cryptid then
     local oldsmodssoundscrymusicexoticselectmusictrack = SMODS.Sounds.cry_music_exotic.select_music_track
@@ -7223,10 +7400,15 @@ SMODS.Seal{
     key = 'reverseseal',
     badge_colour = G.C.UI.TEXT_DARK,
     atlas = 'Seals',
-    pos = { x = 0, y = 0 },
+    pos = { x = 8, y = 0 },
     config = {extra = {downxmult = 3}},
     loc_vars = function(_, _, card)
         return {vars = {card.ability.seal.extra.downxmult}}
+    end,
+    calculate = function(_, card, context)
+        if (context.main_scoring and (context.cardarea == G.play or context.cardarea == G.hand) and card.facing == 'back') or context.forcetrigger then
+            return {xmult = card.ability.seal.extra.downxmult}
+        end
     end
 }
 
@@ -7255,6 +7437,11 @@ SMODS.Seal{
     badge_colour = HEX('FF0040'),
     atlas = 'Enhancers',
     pos = { x = 5, y = 4 },
+    calculate = function(_, card, context)
+        if (context.destroy_card and context.cardarea == 'unscored' and context.destroy_card == card) or context.forcetrigger then
+            return {remove = true}
+        end
+    end
 }
 
 function SEALS.has_seal(card, seal)
@@ -7534,13 +7721,11 @@ SMODS.Seal{
                                     break
                                 end
                             end
-                            if _planet then
-                                local ccard = SMODS.add_card({key = _planet})
-                                ccard:set_edition('e_negative', true)
-                                SEALS.add_seal(ccard, 'Red', nil, true)
-                                SEALS.add_seal(ccard, 'Gold', true, true)
-                                SMODS.calculate_effect({message = localize('k_plus_planet'), colour = G.C.SECONDARY_SET.Planet, instant = true}, card)
-                            end
+                            local ccard = SMODS.add_card({set = 'Planet', key = _planet, key_append = 'upgradedblusl'})
+                            ccard:set_edition('e_negative', true)
+                            SEALS.add_seal(ccard, 'Red', nil, true)
+                            SEALS.add_seal(ccard, 'Gold', true, true)
+                            SMODS.calculate_effect({message = localize('k_plus_planet'), colour = G.C.SECONDARY_SET.Planet, instant = true}, card)
                             G.GAME.consumeable_buffer = 0
                         end
                         return true
@@ -7602,7 +7787,7 @@ SMODS.Seal{
                     trigger = 'before',
                     delay = 0.0,
                     func = function()
-                        local ccard = SMODS.add_card({set = 'Tarot', key_append = '8ba'})
+                        local ccard = SMODS.add_card({set = 'Tarot', key_append = 'upgraded8ba'})
                         ccard:set_edition('e_negative', true)
                         SEALS.add_seal(ccard, 'Red', nil, true)
                         SEALS.add_seal(ccard, 'Gold', true, true)
@@ -7620,6 +7805,7 @@ SMODS.Seal{
     end
 }
 
+--[[
 SMODS.Seal{
     key = 'upgradedsoe_rainbowsealseal',
     badge_colour = HEX('9B0B00'),
@@ -7629,6 +7815,7 @@ SMODS.Seal{
         return false
     end
 }
+]]
 
 local oldsmodsscorecard = SMODS.score_card
 function SMODS.score_card(card, context)
@@ -7677,8 +7864,8 @@ end
 
 local oldsmodscalceff = SMODS.calculate_effect
 SMODS.calculate_effect = function(effect, scored_card, ...)
-    if G.soe_truer_card and G.soe_truer_card[scored_card] then
-        return oldsmodscalceff(effect, G.soe_truer_card[scored_card], ...)
+    if scored_card and scored_card.soe_truer_card then
+        return oldsmodscalceff(effect, scored_card.soe_truer_card, ...)
     elseif scored_card and scored_card.soe_realcard then
         return oldsmodscalceff(effect, scored_card.soe_realcard, ...)
     elseif effect.soe_true_card then
@@ -7733,6 +7920,15 @@ function Card:highlight(is_higlighted)
         self.children.soe_seal2buttons:remove()
         self.children.soe_seal2buttons = nil
     end
+    if is_higlighted and self.config.center_key == 'c_soe_placeholder' and self.area == G.consumeables then
+        self.children.soe_rulesbutton = UIBox({
+            definition = G.UIDEF.soe_rules_button(self),
+            config = {align = 'cl', major = self, parent = self, offset = {x = 0.5, y = 0}}
+        })
+    elseif self.children.soe_rulesbutton then
+        self.children.soe_rulesbutton:remove()
+        self.children.soe_rulesbutton = nil
+    end
     oldhighlight(self, is_higlighted)
     if SEALS.has_seal(self, 'soe_negativeseal') and not is_higlighted then
         if self.area == G.hand then
@@ -7741,12 +7937,12 @@ function Card:highlight(is_higlighted)
                 SMODS.change_play_limit(-1)
                 SMODS.change_discard_limit(-1)
             end
-        elseif self.ability.consumeable and G.hand.config.soe_old_highlighted_limit then
+        elseif self.ability.consumeable and G.hand.config.soe_old_highlighted_limit and not self.soe_using_card then
             G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
             G.hand.config.soe_old_highlighted_limit = nil
             local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
             if limit < count then
-                for i=limit+1, count do
+                for i=count, limit+1, -1 do
                     G.hand:remove_from_highlighted(G.hand.highlighted[i])
                 end
             end
@@ -7809,12 +8005,51 @@ SMODS.Back{
     pos = {x = 4, y = 2},
 }
 
+--[[
+SMODS.Back{
+    key = 'voucher',
+    atlas = 'Vouchers',
+    pos = {x = 7, y = 0},
+    apply = function(self)
+        local options = {}
+        for _, v in ipairs(G.P_CENTER_POOLS.Enhanced) do
+            if v.soe_is_voucher_enhancement then
+                options[#options+1] = v.key
+            end
+        end
+        SEALS.event(function()
+            for _, v in ipairs(G.playing_cards) do
+                v:set_ability(G.P_CENTERS[SMODS.poll_enhancement({key = self.key, guaranteed = true, options = options})])
+            end
+            return true
+        end)
+    end
+}
+]]
+
 SMODS.Back{
     key = 'true',
     atlas = 'Enhancers',
     pos = {x = 6, y = 2},
     config = {hand_size = -3, joker_slot = 3},
-    apply = function()
+    apply = function(self)
+        --[[
+        local options = {}
+        for _, v in ipairs(G.P_CENTER_POOLS.Enhanced) do
+            if v.soe_is_voucher_enhancement then
+                options[#options+1] = v.key
+            end
+        end
+        SEALS.event(function()
+            for _, v in ipairs(G.playing_cards) do
+                v:set_ability(G.P_CENTERS[SMODS.poll_enhancement({key = self.key, guaranteed = true, options = options})])
+                for _, vv in ipairs(v.ability.soe_mergedcards) do
+                    vv.enhancement = SMODS.poll_enhancement({key = self.key, guaranteed = true, options = options})
+                end
+            end
+            return true
+        end)
+        ]]
         SEALS.event(function()
             SMODS.add_card({key = 'j_soe_sealjoker2'})
             return true
@@ -7910,32 +8145,10 @@ if CardSleeves then
 end
 
 --[[
-SMODS.Stake{
-    key = 'seal',
-    applied_stakes = {'stake_gold'},
-    loc_txt = {
-        name = 'Seal Stake',
-        text = {
-            'I dont know',
-        },
-        sticker = {
-            name = 'Seal Sticker',
-            text = {
-                'I dont know',
-            }
-        }
-    },
-    atlas = 'Stakes',
-    pos = {x = 0, y = 0},
-    colour = G.C.RED
-}
-]]
-
---[[
 SMODS.Achievement{
     key = 'completionist_plus_plus_plus',
     unlock_condition = function(self, args)
-        return G.PROGRESS.soe_card_stickers.tally/G.PROGRESS.soe_card_stickers.of >= 1 
+        return G.PROGRESS.soe_card_stickers.tally/G.PROGRESS.soe_card_stickers.of >= 1
     end
 }
 
@@ -7978,7 +8191,7 @@ end
 --[[
 local oldcheckforunlock = check_for_unlock
 function check_for_unlock(args)
-    if args.type == 'win_stake' then 
+    if args.type == 'win_stake' then
         G.PROGRESS.soe_card_stickers = G.PROGRESS.soe_card_stickers or {tally = 0, of = 0}
         if G.PROGRESS.soe_card_stickers.tally/G.PROGRESS.soe_card_stickers.of >= 1 then
             unlock_achievement('completionist_plus_plus_plus')
@@ -8018,28 +8231,56 @@ SEALS.config_tab = function()
             callback = emptyfunc
         })
     end
-    configoptions[#configoptions+1] = create_toggle({
-        label = 'Disable synonym music',
-        ref_table = SEALS.config,
-        ref_value = 'synonymmusicdisable',
-        callback = emptyfunc
-    })
-    configoptions[#configoptions+1] = create_toggle({
-        label = 'Omega Seals on playing cards count as every joker',
-        ref_table = SEALS.config,
-        ref_value = 'omegasealplayingcardjokerenable',
-        callback = emptyfunc
-    })
-    configoptions[#configoptions+1] = create_toggle({
-        label = 'Show indicators on non-object objects',
-        ref_table = SEALS.config,
-        ref_value = 'indicators',
-        callback = emptyfunc
-    })
+    if not SEALS.config.disablecontent then
+        configoptions[#configoptions+1] = create_toggle({
+            label = 'Disable synonym music',
+            ref_table = SEALS.config,
+            ref_value = 'synonymmusicdisable',
+            callback = emptyfunc
+        })
+        --[[
+        configoptions[#configoptions+1] = create_toggle({
+            label = 'Omega Seals on playing cards count as every joker',
+            ref_table = SEALS.config,
+            ref_value = 'omegasealplayingcardjokerenable',
+            callback = emptyfunc
+        })
+        ]]
+        configoptions[#configoptions+1] = create_toggle({
+            label = 'Show indicators on non-object objects',
+            ref_table = SEALS.config,
+            ref_value = 'indicators',
+            callback = emptyfunc
+        })
+        configoptions[#configoptions+1] = create_toggle({
+            label = 'Community Mode',
+            info = {'Everybody else\'s Jokers are also put into the game'},
+            ref_table = SEALS.config,
+            ref_value = 'communitymode',
+            callback = function() G.soe_force_check = true end
+        })
+    end
     configoptions[#configoptions+1] = create_toggle({
         label = 'Permanent Seal 2 effect',
         ref_table = SEALS.config,
         ref_value = 'permanentseal2effect',
+        callback = emptyfunc
+    })
+    --[[
+    configoptions[#configoptions+1] = create_option_cycle({
+        label = 'Get updates from where? (May not work)',
+        options = {'Releases (Mostly stable)', 'main (Less stable)', 'dev (The most unstable)', 'Nowhere'},
+        current_option = SEALS.config.updatelocation or 4,
+        w = 6,
+        scale = 0.8,
+        text_scale = 0.5,
+        opt_callback = 'soe_update_update_location'
+    })
+    ]]
+    configoptions[#configoptions+1] = create_toggle({
+        label = 'Disable content (Restart required)',
+        ref_table = SEALS.config,
+        ref_value = 'disablecontent',
         callback = emptyfunc
     })
     return {
@@ -8055,22 +8296,92 @@ SEALS.config_tab = function()
     }
 end
 
+SEALS.extra_tabs = function()
+    return {
+        {
+            label = 'Last Rejection Reasons',
+            tab_definition_function = function()
+                return {
+                    n = G.UIT.ROOT,
+                    config = {
+                        emboss = 0.05,
+                        minh = 6,
+                        r = 0.1,
+                        minw = 6,
+                        align = "tm",
+                        padding = 0.2,
+                        colour = G.C.BLACK
+                    },
+                    nodes = {
+                        {
+                            n = G.UIT.R,
+                            config = {
+                                padding = 0.2,
+                                align = "cm"
+                            },
+                            nodes = {
+                                {
+                                    n = G.UIT.T,
+                                    config = {
+                                        text = table.concat(SEALS.config.last_rejection_reasons, '\n\n'),
+                                        shadow = false,
+                                        scale = 0.375,
+                                        colour = G.C.UI.TEXT_LIGHT
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            end
+        }
+    }
+end
+
+--[[
+function G.FUNCS.soe_update_update_location(args)
+    SEALS.config.updatelocation = args.to_key
+end
+]]
+
 SEALS.seal_dt = 0
 SEALS.rainbow_seal_dt = 0
 SEALS.detached_red_seal_dt = 0
+SEALS.joker_request_check_dt = 0
+SEALS.joker_request_check_interval = 60
+local ok, https = pcall(require, 'SMODS.https')
+local function get_cookie(callback)
+    https.asyncRequest('https://eoals771wo5dw0f.m.pipedream.net', function(code, body)
+        if code == 200 then
+            SEALS.config.javascript_bypass_cookie = JSON.decode(body).cookie
+            SMODS.save_mod_config(SEALS)
+            if callback then callback() end
+        else
+            print('Cookie failed: '..code..' '..body)
+        end
+    end)
+end
 local oldgameupdate = Game.update
 function Game:update(dt)
     oldgameupdate(self, dt)
-    if G.title_top and G.title_top.cards and G.title_top.cards[1] then
+    if G.title_top and G.title_top.cards and G.title_top.cards[1] and not SEALS.config.disablecontent then
         SEALS.seal_dt = SEALS.seal_dt + dt
         if SEALS.seal_dt > 0.2 then
             SEALS.seal_dt = SEALS.seal_dt - 0.2
             for _, v in ipairs(G.title_top.cards) do
                 local seals = {}
                 for k in pairs(G.P_SEALS) do
-                    seals[#seals+1] = k
+                    if k ~= v.seal then
+                        seals[#seals+1] = k
+                    end
                 end
-                v.seal = seals[math.random(#seals)]
+                local seal = seals[math.random(#seals)]
+                v.seal = seal
+                v.ability.seal = setmetatable({}, {__newindex = emptyfunc, __index = function(t) return sc(t) end})
+                local soe_mergedcards = v.ability.soe_mergedcards
+                if soe_mergedcards and soe_mergedcards[1] then
+                    soe_mergedcards[1].seal = seal
+                end
             end
         end
     end
@@ -8163,6 +8474,151 @@ function Game:update(dt)
         G.GAME.round_resets.discards = G.GAME.current_round.discards_left
         G.GAME.round_resets.hands = G.GAME.current_round.hands_left
     end
+    if ok and not G.soe_gotten_cookie and (SEALS.config.communitymode or next(SEALS.config.joker_requests) or next(SEALS.config.current_public_jokers)) then
+        SEALS.joker_request_check_dt = SEALS.joker_request_check_dt + dt
+        if SEALS.joker_request_check_dt > SEALS.joker_request_check_interval or G.soe_force_check then
+            G.soe_force_check = nil
+            SEALS.joker_request_check_dt = SEALS.joker_request_check_dt - SEALS.joker_request_check_interval
+            local request_ids = {}
+            for k in pairs(SEALS.config.joker_requests) do
+                request_ids[#request_ids+1] = k
+            end
+            local options = {
+                method = 'POST',
+                headers = {
+                    ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0'
+                },
+                data = JSON.encode({request_ids = request_ids})
+            }
+            local options2 = {
+                method = 'GET',
+                headers = {
+                    ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0'
+                }
+            }
+            local function callback()
+                if G.deck and request_ids[1] then
+                    options.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
+                    https.asyncRequest('https://sealsoneverything.great-site.net/check', options, function(code, body)
+                        if code == 200 then
+                            if body:find('<html>') then
+                                if not G.soe_gotten_cookie then
+                                    G.soe_gotten_cookie = true
+                                    get_cookie(callback)
+                                else
+                                    print('Cookie doesn\'t work')
+                                end
+                                return
+                            end
+                            G.soe_gotten_cookie = nil
+                            local response = JSON.decode(body)
+                            local ready, rejected = {}, {}
+                            if response.blocked then
+                                SEALS.joker_request_check_interval = 3600
+                            else
+                                SEALS.joker_request_check_interval = 60
+                            end
+                            for k, v in pairs(SEALS.config.joker_requests) do
+                                if response.results[k] then
+                                    if v.status == 'pending' then
+                                        if response.results[k].status == 'ready' then
+                                            ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
+                                        elseif response.results[k].status == 'rejected' then
+                                            rejected[#rejected+1] = {reason = response.results[k].rejection_reason, return_consumable = response.results[k].return_consumable, pirated = response.results[k].pirated}
+                                        end
+                                    elseif v.status == 'ready' and v.joker_file and response.results[k].joker_file and v.joker_file ~= response.results[k].joker_file then
+                                        ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
+                                    end
+                                    SEALS.config.joker_requests[k] = response.results[k]
+                                end
+                            end
+                            SMODS.save_mod_config(SEALS)
+                            for k, v in pairs(ready) do
+                                local key = 'j_soe_'..k
+                                local cards
+                                if G.P_CENTERS[key] then
+                                    cards = SEALS.permanently_delete_center(G.P_CENTERS[key], true)
+                                    notify_alert('j_joker', 'soe_request_fixed')
+                                else
+                                    notify_alert('j_joker', 'soe_request_completion')
+                                end
+                                NFS.write(SEALS.path..'custom/'..k..'.lua', v)
+                                local oldsmodscurrentmod = SMODS.current_mod
+                                SMODS.current_mod = SEALS
+                                local joker = SMODS.load_file('custom/'..k..'.lua')()
+                                joker:inject()
+                                joker:process_loc_text()
+                                SEALS.parse_loc_txt(G.localization.descriptions[joker.set][joker.key])
+                                SMODS.current_mod = oldsmodscurrentmod
+                                if cards then
+                                    for _, v in ipairs(cards) do
+                                        SMODS.add_card({key = key, area = v})
+                                    end
+                                end
+                            end
+                            for _, v in ipairs(rejected) do
+                                notify_alert('j_joker', 'soe_request_rejected')
+                                table.insert(SEALS.config.last_rejection_reasons, 1, v.reason)
+                                if #SEALS.config.last_rejection_reasons == 9 then
+                                    SEALS.config.last_rejection_reasons[9] = nil
+                                end
+                                if v.return_consumable then
+                                    SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not v.pirated
+                                end
+                            end
+                        else
+                            print('Check failed: '..code..' '..body)
+                        end
+                    end)
+                end
+                if SEALS.config.communitymode then
+                    options2.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
+                    https.asyncRequest('https://sealsoneverything.great-site.net/public', options2, function(code, body)
+                        if code == 200 then
+                            if body:find('<html>') then
+                                if not G.soe_gotten_cookie then
+                                    G.soe_gotten_cookie = true
+                                    get_cookie(callback)
+                                else
+                                    print('Cookie doesn\'t work')
+                                end
+                                return
+                            end
+                            G.soe_gotten_cookie = nil
+                            local response = JSON.decode(body)
+                            for k, v in pairs(response.public) do
+                                if not SEALS.config.current_public_jokers[k] and not SEALS.config.joker_requests[k] then
+                                    SEALS.config.current_public_jokers[k] = true
+                                    NFS.write(SEALS.path..'custom/'..k..'.lua', v.joker_file..'\n\njoker.soe_id = \''..k..'\'\njoker.soe_idea = \''..v.username..'\'\nreturn joker')
+                                    local oldsmodscurrentmod = SMODS.current_mod
+                                    SMODS.current_mod = SEALS
+                                    local joker = SMODS.load_file('custom/'..k..'.lua')()
+                                    joker:inject()
+                                    joker:process_loc_text()
+                                    SEALS.parse_loc_txt(G.localization.descriptions[joker.set][joker.key])
+                                    SMODS.current_mod = oldsmodscurrentmod
+                                end
+                            end
+                        else
+                            print('Check failed: '..code..' '..body)
+                        end
+                    end)
+                elseif next(SEALS.config.current_public_jokers) then
+                    for k in pairs(SEALS.config.current_public_jokers) do
+                        if G.P_CENTERS['j_soe_'..k] then
+                            SEALS.permanently_delete_center(G.P_CENTERS['j_soe_'..k])
+                        end
+                    end
+                    SEALS.config.current_public_jokers = {}
+                end
+            end
+            if SEALS.config.javascript_bypass_cookie then
+                callback()
+            else
+                get_cookie(callback)
+            end
+        end
+    end
 end
 
 --[[
@@ -8205,7 +8661,7 @@ function Card:update(dt)
     self.config.soe_epsilon = info
     self.base.soe_epsilon = info
     oldupdate(self, dt)
-    if (self.eligible_strength_jokers or self.eligible_editionless_jokers) and SMODS.find_card('j_soe_sealjoker2')[1] then
+    if (self.eligible_strength_jokers or self.eligible_editionless_jokers) and SEALS.is_eligible_for_property(self, 'edition') then
         local jokers = self.eligible_strength_jokers or self.eligible_editionless_jokers
         EMPTY(jokers)
         for i, v in ipairs(G.jokers.cards) do
@@ -8250,10 +8706,17 @@ end
 local oldcardremovefromdeck = Card.remove_from_deck
 function Card:remove_from_deck(from_debuff)
     G.soe_check_eternal_cache = {}
+    local was_added_to_deck = self.added_to_deck
     oldcardremovefromdeck(self, from_debuff)
-    if self.ability.soe_mergedcards and self.ability.soe_mergedcards[1] then
-        for _, v in ipairs(self.ability.soe_mergedcards) do
-            SEALS.copy_card_but_not(self, v.key, v):remove_from_deck(from_debuff)
+    if was_added_to_deck then
+        if self.config.center.soe_set_variable_when_obtained then
+            G[self.config.center_key..'_obtained'] = nil
+        end
+        SEALS.recalc_quantum_jokers(self)
+        if self.ability.soe_mergedcards and self.ability.soe_mergedcards[1] then
+            for _, v in ipairs(self.ability.soe_mergedcards) do
+                SEALS.copy_card_but_not(self, v.key, v):remove_from_deck(from_debuff)
+            end
         end
     end
 end
@@ -8261,6 +8724,9 @@ end
 local oldcardaddtodeck = Card.add_to_deck
 function Card:add_to_deck(from_debuff)
     G.soe_check_eternal_cache = {}
+    if self.config.center.soe_set_variable_when_obtained then
+        G[self.config.center_key..'_obtained'] = true
+    end
     oldcardaddtodeck(self, from_debuff)
     if self.ability.soe_mergedcards and self.ability.soe_mergedcards[1] then
         for _, v in ipairs(self.ability.soe_mergedcards) do
@@ -8269,9 +8735,90 @@ function Card:add_to_deck(from_debuff)
     end
 end
 
+local oldsmodsaddtopool = SMODS.add_to_pool
+function SMODS.add_to_pool(prototype_obj, args)
+    if prototype_obj.soe_is_consumable_joker or args and args.source == 'voucherdeck' or prototype_obj.set ~= 'Joker' or not SEALS.check_deck('voucher') then
+        return oldsmodsaddtopool(prototype_obj, args)
+    end
+end
+
+local oldsmodspollrarity = SMODS.poll_rarity
+function SMODS.poll_rarity(_pool_key, _rand_key)
+    if _pool_key == 'Joker' and _rand_key ~= 'rarity'..G.GAME.round_resets.ante..'voucherdeck' and SEALS.check_deck('voucher') then
+        return 3
+    else
+        return oldsmodspollrarity(_pool_key, _rand_key)
+    end
+end
+
+local oldsmodsaddvouchertoshop = SMODS.add_voucher_to_shop
+function SMODS.add_voucher_to_shop(key, ...)
+    if SEALS.check_deck('voucher') and key and G.P_CENTERS[key].set ~= 'Joker' then
+        return oldsmodsaddvouchertoshop(nil, ...)
+    else
+        return oldsmodsaddvouchertoshop(key, ...)
+    end
+end
+
+local oldgetnextvoucherkey = get_next_voucher_key
+function get_next_voucher_key(_from_tag)
+    if SEALS.check_deck('voucher') then
+        local _pool, _pool_key = get_current_pool('Joker', nil, nil, 'voucherdeck')
+        if _from_tag then _pool_key = 'Joker_fromtag' end
+        local center = pe(_pool, ps(_pool_key))
+        local it = 1
+        while center == 'UNAVAILABLE' do
+            it = it + 1
+            center = pe(_pool, ps(_pool_key..'_resample'..it))
+        end
+        return center
+    else
+        return oldgetnextvoucherkey(_from_tag)
+    end
+end
+
+local oldsmodsgetnextvouchers = SMODS.get_next_vouchers
+function SMODS.get_next_vouchers(vouchers)
+    if SEALS.check_deck('voucher') then
+        local oldgplayingcards
+        if not G.playing_cards then
+            oldgplayingcards = G.playing_cards
+            G.playing_cards = {}
+        end
+        vouchers = vouchers or {spawn = {}}
+        local _pool, _pool_key = get_current_pool('Joker', nil, nil, 'voucherdeck')
+        for _=#vouchers+1, math.min(SMODS.size_of_pool(_pool), G.GAME.starting_params.vouchers_in_shop + (G.GAME.modifiers.extra_vouchers or 0)) do
+            local center
+            if SMODS.optional_features.object_weights then
+                center = SMODS.poll_object({type = 'Joker', seed = _pool_key, append = 'voucherdeck'})
+            else
+                center = pe(_pool, ps(_pool_key))
+                local it = 1
+                while center == 'UNAVAILABLE' or vouchers.spawn[center] do
+                    it = it + 1
+                    center = pe(_pool, ps(_pool_key..'_resample'..it))
+                end
+            end
+            vouchers[#vouchers+1] = center
+            vouchers.spawn[center] = true
+        end
+        if oldgplayingcards then
+            G.playing_cards = oldgplayingcards
+        end
+        return vouchers
+    else
+        return oldsmodsgetnextvouchers(vouchers)
+    end
+end
+
 local oldcardareaemplace = CardArea.emplace
 function CardArea:emplace(card, ...)
-    if card.REMOVED then return end
+    if card.REMOVED or card.ability.soe_dont_emplace then return end
+    for _, v in ipairs(self.cards) do
+        if v == card then
+            return
+        end
+    end
     if not card.soe_lastcardarea and not G.SETTINGS.paused and not self.config.collection and not G.soe_creatingmergedcard and SEALS.check_deck('merged', true) then
         G.soe_creatingmergedcard = true
         local center = card.config.center
@@ -8282,7 +8829,7 @@ function CardArea:emplace(card, ...)
             rarity = ({'Common', 'Uncommon', 'Rare', 'Legendary'})[other_rarity] or other_rarity
         end
         local other_card = SMODS.create_card({set = set == 'Default' and 'Base' or set, rarity = rarity, no_edition = true, skip_materialize = true})
-        SEALS.merge_cards(card, {other_card}, true, true)
+        SEALS.merge_cards({card, other_card}, true, true)
         G.soe_creatingmergedcard = nil
     end
     card.soe_lastcardarea = self
@@ -8291,6 +8838,7 @@ function CardArea:emplace(card, ...)
         if SEALS.check_deck('synonym') and card.ability.consumeable then
             if G.GAME.soe_other_consumable then
                 G.GAME.soe_other_consumable = nil
+                --[[
                 local _type
                 if G.GAME.soe_joker_hands_available then
                     _type = 'soe_Synonyms'
@@ -8300,15 +8848,15 @@ function CardArea:emplace(card, ...)
                         soe_Phantom = #G.P_CENTER_POOLS.soe_Phantom
                     }, 'synonym_deck')
                 end
-                local _pool, _pool_key = get_current_pool(_type, nil, nil, 'synonym_deck')
-                local center = pseudorandom_element(_pool, pseudoseed(_pool_key))
+                ]]
+                local _pool, _pool_key = get_current_pool('soe_Synonyms', nil, nil, 'synonym_deck')
+                local center = pe(_pool, ps(_pool_key))
                 local it = 1
                 while center == 'UNAVAILABLE' do
                     it = it + 1
-                    center = pseudorandom_element(_pool, pseudoseed(_pool_key..'_resample'..it))
+                    center = pe(_pool, ps(_pool_key..'_resample'..it))
                 end
-                center = G.P_CENTERS[center]
-                card:set_ability(center)
+                card:set_ability(G.P_CENTERS[center])
             else
                 G.GAME.soe_other_consumable = true
             end
@@ -8335,7 +8883,7 @@ function CardArea:emplace(card, ...)
                 other_card = SMODS.create_card({set = set == 'Default' and 'Base' or set, rarity = rarity, no_edition = true, key_append = 'sho'})
             end
             G.soe_creatingmergedcard = nil
-            SEALS.merge_cards(card, {other_card}, true, true)
+            SEALS.merge_cards({card, other_card}, true, true)
         end
         if SEALS.check_deck('seal') then
             card:set_seal(SMODS.poll_seal({key = 'sealdeck', guaranteed = true}), true, true)
@@ -8407,6 +8955,12 @@ function CardArea:remove_card(card, discarded_only)
             SMODS.change_play_limit(-1)
             SMODS.change_discard_limit(-1)
         end
+        SEALS.event(function()
+            if card.REMOVED then
+                SEALS.recalc_quantum_editions(card)
+            end
+            return true
+        end, nil, nil, false)
     end
     if G.soe_joker_deck then
         G.soe_joker_deck.config.card_limit = #G.jokers.cards+#G.soe_joker_deck.cards
@@ -8416,11 +8970,10 @@ end
 
 local oldcardremove = Card.remove
 function Card:remove()
-    if SEALS.has_sticker(self, 'soe_epsilon') and not G.SETTINGS.paused and not G.in_delete_run and not self.destroyed_by_gallowsbird and not G.soe_toggling_shop and not (G.TMJCOLLECTION and tc(G.TMJCOLLECTION, self.area)) then
+    if SEALS.has_sticker(self, 'soe_epsilon') and not G.SETTINGS.paused and not G.in_delete_run and not self.destroyed_by_gallowsbird and not G.soe_toggling_shop and not (self.area and self.area.config.collection) then
         self.getting_sliced = nil
         self.destroyed = nil
         self.shattered = nil
-        self.skip_destroy_animation = nil
         self.dissolve = 0
         self.dissolve_colours = nil
         self.T.r = self.original_T.r
@@ -8437,7 +8990,7 @@ function Card:remove()
             SMODS.calculate_effect({message = self.ability.soe_epsilon.message, sound = self.ability.soe_epsilon.sound or nil, colour = self.ability.soe_epsilon.colour or nil, func = self.ability.soe_epsilon.func or nil, extra = self.ability.soe_epsilon.extra or nil}, self)
             percent = oldpercent
         end
-        if self.area and self.area == G.play then
+        if self.soe_using_card then
             if self.ability.consumeable then
                 SEALS.move_card(self, G.consumeables)
             elseif self.ability.set == 'Booster' then
@@ -8528,7 +9081,7 @@ SMODS.Joker:take_ownership('j_mail',
 SMODS.Joker:take_ownership('j_flash',
     {
         calculate = function(_, card, context)
-            if context.reroll_shop and not context.blueprint and not SEALS.has_edition(card, 'e_soe_frozen') then
+            if context.reroll_shop and not context.blueprint and (card.config.center.soe_frozen_immune or not SEALS.has_edition(card, 'e_soe_frozen')) then
                 SMODS.scale_card(card, {
                     ref_table = card.ability,
                     ref_value = 'mult',
@@ -8610,28 +9163,27 @@ SMODS.Joker:take_ownership('j_mr_bones',
     true
 )
 
-SMODS.DrawStep{
-    key = 'sealsforall',
-    order = 30,
-    func = function(self, layer)
-        if (self.ability.set ~= 'Joker' and (self.ability.set ~= 'Default' and self.ability.set ~= 'Enhanced')) and self.seal then
-            local seal = G.P_SEALS[self.seal] or {}
-            if self.ability.delay_seal then return end
-            if type(seal.draw) == 'function' then
-                seal:draw(self, layer)
-            elseif self.seal then
-                G.shared_seals[self.seal].role.draw_major = self
-                G.shared_seals[self.seal]:draw_shader('dissolve', nil, nil, nil, self.children.center)
-                if self.seal == 'Gold' then G.shared_seals[self.seal]:draw_shader('voucher', nil, self.ARGS.send_to_shader, nil, self.children.center) end
-            end
-        end
-    end,
-    conditions = {vortex = false, facing = 'front'},
-}
+--[[
+local update_check
+if SEALS.config.updatelocation ~= 4 then
+    update_check = assert(SMODS.load_file('updater.lua'))()
+end
+]]
+
+for _, v in ipairs(NFS.getDirectoryItems(SEALS.path..'custom')) do
+    if v ~= '.gitignore' then
+        SMODS.load_file('custom/'..v)()
+    end
+end
 
 local oldsmodsinjectitems = SMODS.injectItems
 function SMODS.injectItems()
-    local g = oldsmodsinjectitems()
+    --[[
+    if update_check then
+        update_check.request_asynchronously()
+    end
+    ]]
+    oldsmodsinjectitems()
     G.shared_sleeves = {Plasma = SMODS.create_sprite(0, 0, 71, 95, 'soe_VanillaSleeves', {x = 3, y = 2})}
     G.shared_psyche = SMODS.create_sprite(0, 0, 71, 95, 'soe_Enhancers', {x = 0, y = 1})
     G.shared_jokers = {}
@@ -8683,7 +9235,7 @@ function SMODS.injectItems()
         local sticker = SMODS.Stickers[v]
         local oldapply = sticker.apply
         sticker.apply = function(self, card, val)
-            if val and card.ability[self.key] and SMODS.find_card('j_soe_sealjoker2')[1] then
+            if val and card.ability[self.key] and SEALS.is_eligible_for_property(self, {property = 'sticker', key = self.key}) then
                 card.ability.soe_quantum_stickers = card.ability.soe_quantum_stickers or {}
                 card.ability.soe_quantum_stickers[#card.ability.soe_quantum_stickers+1] = self.key
             end
@@ -8704,20 +9256,46 @@ function SMODS.injectItems()
     for k in pairs(G.P_SEALS) do
         seals[#seals+1] = k
     end
-    local title_seal = seals[math.random(#seals)]
-    local localized_seal = true_localize({type = 'name_text', set = 'Other', key = string.lower(title_seal)..'_seal'})
-    if localized_seal then
-        love.window.setTitle('Balatro: '..localized_seal)
+    if not SEALS.config.disablecontent then
+        local title_seal = seals[math.random(#seals)]
+        local localized_seal = true_localize({type = 'name_text', set = 'Other', key = string.lower(title_seal)..'_seal'})
+        if localized_seal then
+            love.window.setTitle('Balatro: '..localized_seal)
+        end
     end
-    return g
+    local oldeventmanageraddevent = G.E_MANAGER.add_event
+    function G.E_MANAGER:add_event(event, ...)
+        if is(event, Event) then
+            if G.soe_redsealretriggering or G.soe_mergedcardusing then
+                local oldeventfunc = event.func
+                event.func = function()
+                    local ok, err = pcall(oldeventfunc)
+                    if not ok then sendErrorMessage(err, 'SEALS') end
+                    return ok and err or true
+                end
+            end
+            oldeventmanageraddevent(self, event, ...)
+        end
+    end
 end
+
+--[[
+local oldgamemainmenu = Game.main_menu
+function Game.main_menu(...)
+    oldgamemainmenu(...)
+    if update_check then
+        update_check.update_check()
+        update_check = nil
+    end
+end
+]]
 
 SMODS.DrawStep {
     key = 'secondseals',
     order = 31,
     conditions = { vortex = false, facing = 'front' },
     func = function(self, layer)
-        if self.seal and self.ability.soe_quantum_seals and self.ability.soe_quantum_seals[1] then
+        if self.seal and not self.ability.delay_seal and self.ability.soe_quantum_seals and self.ability.soe_quantum_seals[1] then
             local seal = G.P_SEALS[self.ability.soe_quantum_seals[1]] or {}
             if type(seal.draw) == 'function' then
                 seal:draw(self, layer)
@@ -8950,6 +9528,7 @@ end
 SMODS.DrawStep{
     key = 'randomplacedsealsforall',
     order = 110,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self and self.ability and SEALS.get_seals(self, true) then
             for i, v in ipairs(SEALS.get_seals(self, true)) do
@@ -8964,39 +9543,38 @@ SMODS.DrawStep{
                 end
             end
         end
-    end,
-    conditions = {vortex = false, facing = 'front'},
+    end
 }
 ]]
 
 SMODS.DrawStep{
     key = 'enhancementsforjokers',
     order = -8,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
-        if self.ability.soe_legalenhancements and next(self.ability.soe_legalenhancements) then
+        if self.ability.soe_legalenhancements and self.ability.soe_legalenhancements[1] then
             local passed = {}
-            for k in pairs(self.ability.soe_legalenhancements) do
-                if k ~= 'm_stone' and not G.P_CENTERS[k].original_mod and not passed[k] then
-                    G.shared_enhancementsforjokers[k].role.draw_major = self
-                    G.shared_enhancementsforjokers[k]:draw_shader('dissolve', nil, nil, nil, self.children.center)
-                    passed[k] = true
+            for _, v in ipairs(self.ability.soe_legalenhancements) do
+                if v ~= 'm_stone' and not G.P_CENTERS[v].original_mod and not passed[v] then
+                    G.shared_enhancementsforjokers[v].role.draw_major = self
+                    G.shared_enhancementsforjokers[v]:draw_shader('dissolve', nil, nil, nil, self.children.center)
+                    passed[v] = true
                 end
             end
         end
-    end,
-    conditions = {vortex = false, facing = 'front'},
+    end
 }
 
 SMODS.DrawStep{
     key = 'sleevesforjokersandplayingcards',
     order = 200,
+    conditions = {vortex = false, facing = 'front'},
     func = function(self)
         if self.ability.legallysleeve then
             G.shared_sleeves[self.ability.legallysleeve].role.draw_major = self
             G.shared_sleeves[self.ability.legallysleeve]:draw_shader('dissolve', nil, nil, nil, self.children.center)
         end
-    end,
-    conditions = {vortex = false, facing = 'front'},
+    end
 }
 
 SMODS.DrawStep{
@@ -9034,7 +9612,7 @@ SMODS.DrawStep{
     order = -9,
     func = function(self)
         if SEALS.config.indicators then
-            if self.config.center.soe_is_planet_joker or self.config.center.soe_is_consumable_joker or self.config.center.soe_is_voucher_joker then
+            if self.config.center.soe_is_consumable_joker or self.config.center.soe_is_voucher_joker then
                 local sprite = G.shared_indicators.joker
                 sprite.role.draw_major = self
                 sprite:draw_shader('dissolve', nil, nil, nil, self.children.center)
@@ -9054,8 +9632,9 @@ SEALS.frozen_inclusions = {
     yorick_discards = true,
     burnt_hand = true,
     loyalty_remaining = true,
+    bonus = true,
     mult = true,
-    h_mult = true, 
+    h_mult = true,
     h_x_mult = true,
     h_dollars = true,
     p_dollars = true,
@@ -9076,10 +9655,10 @@ SMODS.Edition {
     discovered = true,
     unlocked = true,
     on_apply = function(card)
-        if G.STAGE ~= G.STAGES.RUN then return end
+        if not G.deck then return end
         card.ability.soe_frozen_snapshot = {calculate = {}}
         card.ability.soe_frozen_key = card.config.center_key
-        card:generate_UIBox_ability_table(true)
+        SEALS.get_loc_vars(card)
         if card.ability.set == 'Joker' then
             local i = 1
             local hand = G.handlist[i]
@@ -9126,7 +9705,7 @@ SMODS.Blind{
     discovered = true,
     pos = {x = 0, y = 0},
     dollars = 8,
-    boss = {min = 1, max = 10, showdown = true},
+    boss = {showdown = true},
     boss_colour = HEX('E8463D'),
     stay_flipped = function(_, area)
         return area == G.hand
@@ -9157,27 +9736,6 @@ SMODS.Blind{
                 if vv.soe_flipped_by_theseal then
                     vv.soe_flipped_by_theseal = nil
                     vv:flip()
-                end
-            end
-        end
-    end
-}
-
-SMODS.Keybind{
-    key_pressed = '-',
-    held_keys = {'lshift'},
-    event = 'pressed',
-    action = function(self)
-        if G.jokers and G.jokers.highlighted and #G.jokers.highlighted == 1 then
-            local joker = G.jokers.highlighted[1]
-            if not (joker.ability.soe_legalenhancements and next(joker.ability.soe_legalenhancements)) then
-                print('Highlighted joker is not enhanced')
-                return
-            end
-            print("Highlighted joker is enhanced with:")
-            for k, v in pairs(joker.ability.soe_legalenhancements) do
-                if v and v[1] then
-                    print(localize({type = 'name_text', key = k, set = 'Enhanced'})..' '..#v..' time'..((#v == 1) and '' or 's'))
                 end
             end
         end

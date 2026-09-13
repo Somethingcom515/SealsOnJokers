@@ -1,1 +1,1 @@
-Puts seals everywhere! Decks? Boosters? Jokers? Consumables? Stakes? Blinds? We got those!
+Allows seals, enhancements and editions to be on jokers, consumables, vouchers, boosters, and to have multiple on the same card, and you can merge cards, and adds a lot of seals, and adds multiple decks, and adds jokers and consumables and vouchers, and perhaps... making your own jokers?
