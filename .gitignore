@@ -187,16 +187,9 @@ pyrightconfig.json
 # Mac
 .DS_Store
 
-/injector/steamodded_injector.dist/
-/injector/steamodded_injector.exe
-/steamodded_injector.build/
-/steamodded_injector.dist/
-/steamodded_injector.onefile-build/
-/steamodded_injector.exe
-
-*.Identifier
-core/EditionAPI.lua
-
 # LSP/Editor settings
 .vscode
 .luarc.json
+
+# Balatro specific
+.lovelyignore

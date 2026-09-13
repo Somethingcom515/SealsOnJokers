@@ -1,8 +1,8 @@
 SMODS.ConsumableType{
     key = "soe_Orbital",
-    primary_colour = HEX("A2334C"),
-    secondary_colour = HEX("A2334C"),
-    collection_rows = { 6, 6 },
+    primary_colour = HEX('A2334C'),
+    secondary_colour = HEX('A2334C'),
+    collection_rows = {6, 6},
     default = "c_soe_degrade",
     shop_rate = 0,
     can_stack = true,

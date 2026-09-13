@@ -1,8 +1,8 @@
 SMODS.ConsumableType{
     key = "soe_Vice",
-    primary_colour = HEX("2D5E5A"),
-    secondary_colour = HEX("2D5E5A"),
-    collection_rows = { 6, 6 },
+    primary_colour = HEX('2D5E5A'),
+    secondary_colour = HEX('2D5E5A'),
+    collection_rows = {5, 6},
     can_stack = true,
     can_divide = true,
     default = "c_idiot",
@@ -84,8 +84,8 @@ SMODS.Consumable {
     discovered = true,
     pos = { x = 4, y = 0 },
     soe_alternative = 'c_emperor',
-    config = {extra = {}},
-    use = function(_, card)
+    use = function(self, card)
+        local key
         for i = 1, 2 do
             G.E_MANAGER:add_event(Event({
                 trigger = 'after',
@@ -93,10 +93,10 @@ SMODS.Consumable {
                 func = function()
                     play_sound('timpani')
                     if i == 1 then
-                        local _card = SMODS.add_card({set = 'soe_Synonyms'})
-                        card.ability.extra.key = _card.config.center.soe_alternative
+                        local _card = SMODS.add_card({set = 'soe_Synonyms', key_append = self.key})
+                        key = _card.config.center.soe_alternative
                     elseif i == 2 then
-                        SMODS.add_card({key = card.ability.extra.key})
+                        SMODS.add_card({key = key, key_append = self.key})
                     end
                     card:juice_up(0.3, 0.5)
                     return true
@@ -111,6 +111,36 @@ SMODS.Consumable {
 }
 
 SMODS.Consumable {
+    key = 'recluse',
+    set = 'soe_Vice',
+    atlas = 'Synonyms',
+    unlocked = true,
+    discovered = true,
+    pos = { x = 9, y = 0 },
+    soe_alternative = 'c_hermit',
+    config = {extra = {xdollars = 1.5}},
+    loc_vars = function(_, _, card)
+        return {vars = {card.ability.extra.xdollars}}
+    end,
+    use = function(_, card)
+        G.E_MANAGER:add_event(Event({
+            trigger = 'after',
+            delay = 0.4,
+            func = function()
+                play_sound('timpani')
+                card:juice_up(0.3, 0.5)
+                ease_dollars(math.max(0, G.GAME.dollars/2), true)
+                return true
+            end
+        }))
+        delay(0.6)
+    end,
+    can_use = function(_, card)
+        return true
+    end
+}
+
+SMODS.Consumable {
     key = 'energy',
     set = 'soe_Vice',
     atlas = 'Synonyms',
@@ -120,7 +150,7 @@ SMODS.Consumable {
     pos = { x = 1, y = 1 },
     config = {extra = {max_highlighted = 1}},
     loc_vars = function(_, _, card)
-        return {vars = {card.ability.extra.max_highlighted, card.ability.max_highlighted == 1 and 'Joker' or 'Jokers'}}
+        return {vars = {card.ability.extra.max_highlighted, card.ability.extra.max_highlighted == 1 and 'Joker' or 'Jokers'}}
     end,
     use = function(_, card)
         G.E_MANAGER:add_event(Event({
@@ -151,7 +181,7 @@ SMODS.Consumable {
                 trigger = 'after',
                 delay = 0.1,
                 func = function()
-                    SEALS.modify_joker_values(G.jokers.highlighted[i], {['+'] = 1})
+                    SEALS.modify_card_values(G.jokers.highlighted[i], {['+'] = 1})
                     return true
                 end
             }))
@@ -180,9 +210,9 @@ SMODS.Consumable {
         delay(0.5)
     end,
     can_use = function(_, card)
-        if G.jokers and G.jokers.highlighted[1] and #G.jokers.highlighted <= card.ability.max_highlighted then
+        if G.jokers and G.jokers.highlighted[1] and #G.jokers.highlighted <= card.ability.extra.max_highlighted then
             for _, v in ipairs(G.jokers.highlighted) do
-                if v.config.center.immutable or v.ability.set ~= "Joker" then
+                if v.config.center.immutable or v.ability.set ~= 'Joker' or (SEALS.has_edition(v, 'e_soe_frozen') and not v.config.center.soe_frozen_immune) then
                     return false
                 end
             end
@@ -221,7 +251,6 @@ SMODS.Consumable {
                 for k, v in pairs(G.jokers.highlighted) do
                     v.destroyed_by_gallowsbird = true
                     v:soe_no_touching2()
-                    SEALS.event(function() v.destroyed_by_gallowsbird = nil return true end)
                 end
                 return true
             end

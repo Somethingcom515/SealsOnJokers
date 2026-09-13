@@ -45,10 +45,12 @@ SMODS.Joker{
     cost = 2,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_joker',
     config = {extra = {dollars = 4}},
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'economy'},
     loc_vars = function(_, _, card)
         return {vars = {card.ability.extra.dollars}}
     end,
@@ -59,7 +61,7 @@ SMODS.Joker{
     end
 }
 
-for i, v in ipairs({{key = 'avaricious', suit = 'Diamonds'}, {key = 'concupiscent', suit = 'Hearts'}, {key = 'infuriated', suit = 'Spades'}, {key = 'edacious', suit = 'Clubs'}}) do
+for i, v in ipairs({{key = 'avaricious', suit = 'Diamonds', soe_alternative = 'j_greedy_joker'}, {key = 'concupiscent', suit = 'Hearts', soe_alternative = 'j_lusty_joker'}, {key = 'infuriated', suit = 'Spades', soe_alternative = 'j_wrathful_joker'}, {key = 'edacious', suit = 'Clubs', soe_alternative = 'j_gluttenous_joker'}}) do
     SMODS.Joker{
         key = v.key..'jokester',
         atlas = 'JokerSynonyms',
@@ -68,10 +70,12 @@ for i, v in ipairs({{key = 'avaricious', suit = 'Diamonds'}, {key = 'concupiscen
         cost = 5,
         unlocked = true,
         discovered = true,
+        soe_alternative = v.soe_alternative,
         config = {extra = {suit = v.suit, dollars = 3}},
         blueprint_compat = true,
         eternal_compat = true,
         perishable_compat = true,
+        attributes = {'economy', 'suit', v.suit:lower()},
         loc_vars = function(_, _, card)
             return {vars = {card.ability.extra.dollars}}
         end,
@@ -83,14 +87,14 @@ for i, v in ipairs({{key = 'avaricious', suit = 'Diamonds'}, {key = 'concupiscen
     }
 end
 
-for _, v in ipairs({'disable', 'defeat', 'press_play', 'debuff_card', 'debuff_hand', 'stay_flipped'}) do
+for _, v in ipairs({'disable', 'press_play', 'debuff_card', 'debuff_hand', 'stay_flipped'}) do
     local old = Blind[v]
     Blind[v] = function(self, a, ...)
         G.soe_current_evaluated_blind = {v, self}
         local g = old(self, a, ...)
         if G.GAME.round_resets.soe_mergedblinds then
             local soe_mergedblinds = G.GAME.round_resets.soe_mergedblinds[G.GAME.blind_on_deck]
-            if soe_mergedblinds[1] then
+            if soe_mergedblinds and soe_mergedblinds[1] then
                 for _, v in ipairs(soe_mergedblinds) do
                     local center = G.P_BLINDS[v]
                     local old_effect, old_center, old_name, old_debuff = copy_table(self.effect), self.config.blind, self.name, self.debuff
@@ -155,6 +159,30 @@ function Blind:set_blind(blind, reset, ...)
     G.soe_current_evaluated_blind = nil
 end
 
+local oldblindsetblind = Blind.set_blind
+function Blind:defeat(...)
+    G.soe_current_evaluated_blind = {'defeat', self}
+    oldblindsetblind(self, ...)
+    if G.GAME.round_resets.soe_mergedblinds then
+        local soe_mergedblinds = G.GAME.round_resets.soe_mergedblinds[G.GAME.blind_on_deck]
+        if soe_mergedblinds[1] then
+            for _, v in ipairs(soe_mergedblinds) do
+                local center = G.P_BLINDS[v]
+                if center.defeat and type(center.defeat) == 'function' then
+                    center:defeat()
+                elseif center.name == 'Crimson Heart' then
+                    for _, vv in ipairs(G.jokers.cards) do
+                        vv.ability.crimson_heart_chosen = nil
+                    end
+                elseif center.name == 'The Manacle' and not self.disabled then
+                    G.hand:change_size(1)
+                end
+            end
+        end
+    end
+    G.soe_current_evaluated_blind = nil
+end
+
 local oldblindmodifyhand = Blind.modify_hand
 function Blind:modify_hand(a, b, c, mult, hand_chips, ...)
     G.soe_current_evaluated_blind = {'modify_hand', self}
@@ -187,30 +215,30 @@ function Card:is_face(from_boss)
     local object, card, blind = SMODS.current_evaluated_object, G.soe_current_updated_card, G.soe_current_evaluated_blind
     if object then
         local identifier = 'soe_evaluated_card_'..object.ID..STR_PACK(fix_context(SMODS.context_stack[#SMODS.context_stack].context))
-        if G.soe_apophenia_cache[identifier] ~= nil then
-            return G.soe_apophenia_cache[identifier]
-        else
+        if G.soe_apophenia_cache[identifier] == nil then
             local cache = not SEALS.get_line_from_function(3):match('not.*%s*:%s*is_face%s*%(')
             G.soe_apophenia_cache[identifier] = cache
             return cache
+        else
+            return G.soe_apophenia_cache[identifier]
         end
     elseif card then
         local identifier = 'soe_updated_card_'..card.ID
-        if G.soe_apophenia_cache[identifier] ~= nil then
-            return G.soe_apophenia_cache[identifier]
-        else
+        if G.soe_apophenia_cache[identifier] == nil then
             local cache = not SEALS.get_line_from_function(3):match('not.*%s*:%s*is_face%s*%(')
             G.soe_apophenia_cache[identifier] = cache
             return cache
+        else
+            return G.soe_apophenia_cache[identifier]
         end
     elseif blind then
         local identifier = 'soe_evaluated_blind_'..blind[2].ID..blind[1]
-        if G.soe_apophenia_cache[identifier] ~= nil then
-            return G.soe_apophenia_cache[identifier]
-        else
+        if G.soe_apophenia_cache[identifier] == nil then
             local cache = not SEALS.get_line_from_function(3):match('not.*%s*:%s*is_face%s*%(')
             G.soe_apophenia_cache[identifier] = cache
             return cache
+        else
+            return G.soe_apophenia_cache[identifier]
         end
     end
     return not SEALS.get_line_from_function(3):match('not.*%s*:%s*is_face%s*%(')
@@ -219,27 +247,87 @@ end
 SMODS.Joker{
     key = 'apophenia',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_pareidolia.pos,
+    pos = {x = 6, y = 3},
     rarity = 'soe_unusual',
     cost = 5,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_pareidolia',
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'modify_card', 'passive', 'face'}
+}
+
+SMODS.Joker{
+    key = 'postaldiscount',
+    atlas = 'JokerSynonyms',
+    pos = {x = 7, y = 13},
+    rarity = 'soe_basic',
+    cost = 4,
+    unlocked = true,
+    discovered = true,
+    soe_alternative = 'j_mail',
+    blueprint_compat = true,
+    eternal_compat = true,
+    perishable_compat = true,
+    attributes = {'retrigger', 'discard'},
+    calculate = function(_, _, context)
+        if (context.retrigger_joker_check and (context.other_context.pre_discard or context.other_context.discard)) or (context.soe_retrigger_seal_check and (context.other_context.pre_discard or context.other_context.discard)) then
+            return {repetitions = 1}
+        end
+    end
+}
+
+SMODS.Joker{
+    key = 'misconception',
+    atlas = 'JokerSynonyms',
+    pos = {x = 9, y = 13},
+    rarity = 'soe_basic',
+    cost = 4,
+    unlocked = true,
+    discovered = true,
+    soe_alternative = 'j_hallucination',
+    blueprint_compat = true,
+    eternal_compat = true,
+    perishable_compat = true,
+    attributes = {'booster', 'shop'},
+    calculate = function(_, _, context)
+        if context.starting_shop then
+            return {func = function() SMODS.add_booster_to_shop('p_soe_synonym_jumbo') end}
+        end
+    end,
+    add_to_deck = function()
+        if G.shop_booster then
+            SMODS.add_booster_to_shop('p_soe_synonym_jumbo')
+        end
+    end,
+    remove_from_deck = function()
+        if G.shop_booster then
+            for i=#G.shop_booster.cards, 1, -1 do
+                local v = G.shop_booster.cards[i]
+                if v.config.center_key == 'p_soe_synonym_jumbo' then
+                    SMODS.destroy_cards(v, {immediate = true})
+                    break
+                end
+            end
+        end
+    end
 }
 
 SMODS.Joker{
     key = 'ballnote',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_baseball.pos,
+    pos = {x = 6, y = 14},
     rarity = 'soe_unique',
     cost = 8,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_baseball',
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'retrigger', 'joker'},
     calculate = function(_, _, context)
         if context.retrigger_joker_check and context.other_card.is_rarity and context.other_card:is_rarity('soe_unusual') then
             return {repetitions = 1}
@@ -249,7 +337,7 @@ SMODS.Joker{
 
 local oldsmodsscalecard = SMODS.scale_card
 function SMODS.scale_card(card, args)
-    if card.config.center.soe_frozen_immune or not (card.edition and card.edition.soe_frozen) then
+    if card.config.center.soe_frozen_immune or not SEALS.has_edition(card, 'e_soe_frozen') then
         return oldsmodsscalecard(card, args)
     end
 end
@@ -257,14 +345,16 @@ end
 SMODS.Joker{
     key = 'water',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_diet_cola.pos,
+    pos = {x = 8, y = 14},
     rarity = 'soe_unusual',
     cost = 6,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_diet_cola',
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'on_sell', 'editions', 'joker'},
     loc_vars = function(_, info_queue)
         info_queue[#info_queue+1] = G.P_CENTERS.e_soe_frozen
     end,
@@ -279,18 +369,25 @@ SMODS.Joker{
     end
 }
 
+SMODS.Attribute{
+    key = 'non-face',
+    alias = {'nonface', 'numbered', 'non_face'}
+}
+
 SMODS.Joker{
     key = 'cheerfulexpression',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_smiley.pos,
+    pos = {x = 6, y = 15},
     rarity = 'soe_basic',
     cost = 4,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_smiley',
     config = {extra = {dollars = 5}},
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'economy', 'non-face'},
     loc_vars = function(_, _, card)
         return {vars = {card.ability.extra.dollars}}
     end,
@@ -304,34 +401,37 @@ SMODS.Joker{
 SMODS.Joker{
     key = 'redfabric',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_blueprint.pos,
+    pos = {x = 0, y = 3},
     rarity = 'soe_unique',
     cost = 10,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_blueprint',
     config = {extra = {jokers = {}}},
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
     soe_frozen_immune = true,
-    loc_vars = function(_, info_queue)
-        info_queue[#info_queue+1] = {key = 'soe_redfabric', set = 'Other'}
+    attributes = {'copying'},
+    loc_vars = function(_, info_queue, card)
+        if not card.area or not card.area.config.collection then
+            info_queue[#info_queue+1] = {key = 'soe_redfabric', set = 'Other'}
+        end
     end,
     calculate = function(self, card, context)
-        local effects, jokers, other_joker = {}, card.ability.extra.jokers, G.jokers.cards[card.rank+1]
-        if other_joker and context.end_of_round and context.main_eval and other_joker.config.center_key ~= self.key then
-            jokers[#jokers+1] = other_joker.config.center_key
-            SEALS.copy_card_but_not(card, other_joker.config.center_key).ability = copy_table(other_joker.ability)
-            effects[#effects+1] = {message = localize('k_copied_ex'), colour = G.C.RED}
-        end
-        if jokers[1] then
-            local joker_effects = SEALS.calculate_quantum_jokers(card, context, jokers)
-            if joker_effects then
-                effects[#effects+1] = joker_effects
+        if not context.soe_fake_context then
+            local effects, jokers, other_joker = {}, card.ability.extra.jokers, G.jokers.cards[card.rank+1]
+            if other_joker and context.end_of_round and context.main_eval and other_joker.config.center_key ~= self.key then
+                jokers[#jokers+1] = other_joker.config.center_key
+                SEALS.copy_card_but_not(card, other_joker.config.center_key).ability = copy_table(other_joker.ability)
+                effects[#effects+1] = {message = localize('k_copied_ex'), colour = G.C.RED}
             end
-        end
-        if effects[1] then
-            return SMODS.merge_effects(effects)
+            if jokers[1] then
+                effects[#effects+1] = SEALS.calculate_quantum_jokers(card, context, jokers)
+            end
+            if effects[1] then
+                return SMODS.merge_effects(effects)
+            end
         end
     end
 }
@@ -339,15 +439,17 @@ SMODS.Joker{
 SMODS.Joker{
     key = 'what',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_oops.pos,
+    pos = {x = 5, y = 6},
     rarity = 'soe_unusual',
     cost = 4,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_oops',
     config = {extra = {prob_mod = 1, cards = 5, count = 0, prob = 0}},
     blueprint_compat = false,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'mod_chance', 'rank', 'seven', 'scaling'},
     loc_vars = function(_, _, card)
         return {vars = {card.ability.extra.prob_mod, card.ability.extra.cards, card.ability.extra.cards-card.ability.extra.count, card.ability.extra.prob}}
     end,
@@ -376,14 +478,16 @@ local sc = SMODS.shallow_copy
 SMODS.Joker{
     key = 'mindassault',
     atlas = 'JokerSynonyms',
-    pos = G.P_CENTERS.j_brainstorm.pos,
+    pos = {x = 7, y = 7},
     rarity = 'soe_unique',
     cost = 10,
     unlocked = true,
     discovered = true,
+    soe_alternative = 'j_brainstorm',
     blueprint_compat = true,
     eternal_compat = true,
     perishable_compat = true,
+    attributes = {'copying'},
     calculate = function(_, card, context)
         if context.joker_main and context.scoring_hand[1] then
             local other_context = sc(context)
@@ -398,11 +502,11 @@ SMODS.Joker{
                         }))
                         card_eval_status_text(card, 'debuff')
                     else
-                        G.soe_truer_card = {[v] = card}
+                        v.soe_truer_card = card
                         SMODS.score_card(v, other_context)
+                        v.soe_truer_card = nil
                     end
                 end
-                G.soe_truer_card = nil
             end}
         end
     end

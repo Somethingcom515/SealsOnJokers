@@ -5,14 +5,6 @@ priority = 1
 
 [[patches]]
 [patches.pattern]
-target = "functions/button_callbacks.lua"
-pattern = "if #G.hand.highlighted <= 0 or G.GAME.blind.block_play or #G.hand.highlighted > 5 then"
-position = "at"
-payload = "if #G.hand.highlighted <= 0 or G.GAME.blind.block_play then"
-match_indent = true
-
-[[patches]]
-[patches.pattern]
 target = "functions/common_events.lua"
 pattern = 'for _, v in ipairs(info_queue) do'
 position = "before"
@@ -23,12 +15,26 @@ if card and card.ability then
             info_queue[#info_queue+1] = G.P_CENTERS[v]
         end
     end
-    if card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements) then
-        for k, v in pairs(card.ability.soe_legalenhancements) do
-            for _=1, #v do
-                info_queue[#info_queue+1] = G.P_CENTERS[k]
+    if card.ability.soe_legalenhancements and card.ability.soe_legalenhancements[1] then
+        local credit
+        for _, v in ipairs(card.ability.soe_legalenhancements) do
+            local center = G.P_CENTERS[v]
+            --info_queue[#info_queue+1] = center
+            local other_center = SMODS.shallow_copy(center)
+            local oldlocvars = other_center.loc_vars
+            other_center.loc_vars = function(self, info_queue, card2)
+                if oldlocvars then
+                    oldlocvars(self, info_queue, card2)
+                end
+                local loc_vars, main_start, main_end = SEALS.get_loc_vars(SEALS.copy_card_but_not(card, v))
+                return {vars = loc_vars, main_start = main_start, main_end = main_end}
+            end
+            info_queue[#info_queue+1] = other_center
+            if not credit and not center.original_mod then
+                credit = true
             end
         end
+        if credit then info_queue[#info_queue+1] = {set = 'Other', key = 'soe_art_credit'} end
     end
     if card.ability.soe_quantum_editions then
         local notfirst = {}
@@ -57,6 +63,9 @@ if card and card.ability then
     if card.ability.soe_mergedcards and card.ability.soe_mergedcards[1] then
         info_queue[#info_queue+1] = {set = 'Other', key = 'soe_merged_cards'}
     end
+    if Card.is(card, Card) and card.config.center.soe_pirated then
+        info_queue[#info_queue+1] = {set = 'Other', key = 'soe_pirated', vars = {SMODS.get_probability_vars(card, 1, 100, 'soe_pirated')}}
+    end
 end
 '''
 match_indent = true
@@ -81,17 +90,10 @@ if card and card.ability then
             badges[#badges+1] = create_badge(G.localization.descriptions.Enhanced[v].name, G.C.SECONDARY_SET.Enhanced)
         end
     end
-    if card.ability.soe_legalenhancements and next(card.ability.soe_legalenhancements) then
-        local credit
-        for k, v in pairs(card.ability.soe_legalenhancements) do
-            for i=1, #v do
-                badges[#badges+1] = create_badge(G.localization.descriptions.Enhanced[k].name, G.C.SECONDARY_SET["Enhanced"])
-            end
-            if not G.P_CENTERS[k].original_mod then
-                credit = true
-            end
+    if card.ability.soe_legalenhancements and card.ability.soe_legalenhancements[1] then
+        for _, v in ipairs(card.ability.soe_legalenhancements) do
+            badges[#badges+1] = create_badge(G.localization.descriptions.Enhanced[v].name, G.C.SECONDARY_SET.Enhanced)
         end
-        if credit then badges[#badges+1] = create_badge('Art: poundpound0209', SMODS.Gradients.soe_synonym_gradient, HEX('FFFFFF')) end
     end
     if card.ability.soe_quantum_editions then
         local notfirst = {}
@@ -106,6 +108,9 @@ if card and card.ability then
         for _, v in ipairs(card.ability.soe_quantum_seals) do
             badges[#badges+1] = create_badge(localize(string.lower(v)..'_seal', 'labels'), G.P_SEALS[v].badge_colour)
         end
+    end
+    if Card.is(card, Card) and card.config.center.soe_idea then
+        badges[#badges+1] = create_badge('Idea: '..card.config.center.soe_idea, HEX('A267E4'))
     end
     if card.ability.soe_detached_seal then
         badges = {}
@@ -177,7 +182,7 @@ match_indent = true
 target = '''functions/state_events.lua'''
 pattern = '''
 for k, v in ipairs(G.play.cards) do
-    if (not v.shattered) and (not v.destroyed) then 
+    if (not v.shattered) and (not v.destroyed) then
         draw_card(G.play,G.discard, it*100/play_count,'down', false, v)
         it = it + 1
     end
@@ -624,7 +629,7 @@ match_indent = true
 target = "game.lua"
 pattern = '''
 for k, v in pairs(self.I.UIBOX) do
-    if v.attention_text and v ~= self.debug_tools and v ~= self.online_leaderboard and v ~= self.achievement_notification  then 
+    if v.attention_text and v ~= self.debug_tools and v ~= self.online_leaderboard and v ~= self.achievement_notification  then
 '''
 position = "before"
 payload = '''
@@ -770,15 +775,15 @@ match_indent = true
 [patches.pattern]
 target = '''=[SMODS _ "src/overrides.lua"]'''
 pattern = '''
-self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, atlas_key, self.params.bypass_back or (self.playing_card and G.GAME[self.back].pos or G.P_CENTERS['b_red'].pos))
+self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, atlas_key, self.params.bypass_back or (self.playing_card and G.GAME[self.back].pos or G.P_CENTERS['b_red'].pos), (G.GAME.viewed_back or G.GAME.selected_back or {}).sprite_args)
 '''
 position = "at"
 payload = '''
 local truedeck = SEALS.check_deck('true')
 if not G.deck or self.back ~= 'selected_back' or not SEALS.check_deck('inverse') then
-    self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, atlas_key, self.params.bypass_back or (self.playing_card and G.GAME[self.back].pos or G.P_CENTERS['b_red'].pos))
+    self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, atlas_key, self.params.bypass_back or (self.playing_card and G.GAME[self.back].pos or G.P_CENTERS['b_red'].pos), (G.GAME.viewed_back or G.GAME.selected_back or {}).sprite_args)
 else
-    self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, 'soe_Enhancers', (_center.set == 'Enhanced' or _center.set == 'Default') and G.GAME[self.back].pos or (truedeck and {x = 0, y = 3} or {x = 3, y = 2}))
+    self.children.back = SMODS.create_sprite(self.T.x, self.T.y, self.T.w, self.T.h, 'soe_Enhancers', (_center.set == 'Enhanced' or _center.set == 'Default') and G.GAME[self.back].pos or (truedeck and {x = 0, y = 3} or {x = 3, y = 2}), (G.GAME.viewed_back or G.GAME.selected_back or {}).sprite_args)
 end
 '''
 match_indent = true
@@ -811,29 +816,9 @@ match_indent = true
 
 [[patches]]
 [patches.pattern]
-target = "card.lua"
-pattern = '''
-if vars_only then return loc_vars, main_start, main_end end
-'''
-position = "before"
-payload = '''
-if self.edition and self.edition.soe_frozen and not (self.area and self.area.config.collection) and not self.config.center.soe_frozen_immune then
-    local snapshot = self.ability.soe_frozen_snapshot
-    if self.ability.soe_frozen_key == self.config.center_key and snapshot.loc_vars then
-        loc_vars = snapshot.loc_vars
-    else
-        snapshot.loc_vars = loc_vars
-        self.ability.soe_frozen_key = self.config.center_key
-    end
-end
-'''
-match_indent = true
-
-[[patches]]
-[patches.pattern]
 target = "functions/common_events.lua"
 pattern = '''
-if not context.post_trigger and not context.retrigger_joker_check and SMODS.optional_features.post_trigger then
+if SMODS.optional_features.post_trigger and SMODS.can_context_post_trigger(context) then
 '''
 position = "before"
 payload = '''
@@ -894,14 +879,13 @@ end
 '''
 position = "at"
 payload = '''
-local eternal_context = {check_eternal = true, other_card = card, trigger = trigger, no_blueprint = true}
 local identifier = card.unique_val
 local cache = G.soe_check_eternal_cache and G.soe_check_eternal_cache[identifier]
 if trigger.from_sell and cache then
     ret = cache.ret
     ovr_compat = cache.ovr_compat
 else
-    SMODS.calculate_context(eternal_context, calc_return)
+    SMODS.calculate_context({check_eternal = true, other_card = card, trigger = trigger, no_blueprint = true,}, calc_return)
     for _,eff in pairs(calc_return) do
         for _,tab in pairs(eff) do
             if tab.no_destroy then --Reuses key from context.joker_type_destroyed
@@ -960,7 +944,7 @@ pattern = '''local blind_amt = get_blind_amount(G.GAME.round_resets.blind_ante)*
 position = "at"
 payload = '''
 local blind_amt
-local soe_mergedblinds = G.GAME.round_resets.soe_mergedblinds and G.GAME.round_resets.soe_mergedblinds[type] or nil
+local soe_mergedblinds = G.GAME.round_resets.soe_mergedblinds and G.GAME.round_resets.soe_mergedblinds[type]
 if soe_mergedblinds and soe_mergedblinds[1] then
     local soe_blind_mult = blind_choice.config.mult
     for _, v in ipairs(soe_mergedblinds) do
@@ -970,16 +954,6 @@ if soe_mergedblinds and soe_mergedblinds[1] then
 else
     blind_amt = get_blind_amount(G.GAME.round_resets.blind_ante)*blind_choice.config.mult*G.GAME.starting_params.ante_scaling
 end
-'''
-match_indent = true
-
-[[patches]]
-[patches.pattern]
-target = '''=[SMODS _ "src/overrides.lua"]'''
-pattern = '''if SUITS[v.base.suit][v.base.value] and not v_nr and not v_ns then'''
-position = "at"
-payload = '''
-if not v_nr and not v_ns and SUITS[v.base.suit][v.base.value] then
 '''
 match_indent = true
 
@@ -1041,5 +1015,63 @@ position = "at"
 payload = '''
 local suit = SUITS[v.base.suit or 'Spades']
 suit[#suit+1] = v
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''if main_end then '''
+position = "before"
+payload = '''
+if card and SEALS.has_edition(card, 'e_soe_frozen') and not (card.area and card.area.config.collection) and not card.config.center.soe_frozen_immune then
+    local snapshot = card.ability.soe_frozen_snapshot
+    if card.ability.soe_frozen_key ~= card.config.center_key or not snapshot.loc_vars then
+        snapshot.loc_vars = loc_vars
+        card.ability.soe_frozen_key = card.config.center_key
+    end
+    G.soe_localize_vars_override = nil
+end
+if G.soe_getting_loc_vars then return G.soe_modded_loc_vars or next(loc_vars) and loc_vars or specific_vars, main_start, main_end end
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = '''local t2 = card.ability.set == 'Voucher' and {'''
+position = "at"
+payload = '''local t2 = (card.ability.set == 'Voucher' or card.ability.set == 'Joker' and card.area == G.shop_vouchers) and {'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = '''elseif card.ability.set == 'Joker' then '''
+position = "at"
+payload = '''elseif card.ability.set == 'Joker' and card.area ~= G.shop_vouchers then '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = '''elseif card.ability.set == 'Voucher' then '''
+position = "at"
+payload = '''elseif card.ability.set == 'Voucher' or card.ability.set == 'Joker' and card.area == G.shop_vouchers then '''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = '''=[SMODS _ "src/game_object.lua"]'''
+pattern = '''
+end
+
+localize(target)
+'''
+position = "after"
+payload = '''
+if G.soe_getting_loc_vars then
+    G.soe_modded_loc_vars = target.vars
+end
 '''
 match_indent = true
