@@ -1160,7 +1160,7 @@ return {
             c_soe_cannotfinditemwithkeyc_deja_vu = {
                 name = 'Cannot find item with key: \'c_deja_vu\'',
                 text = {
-                    'Merge {C:attention}any{}',
+                    '{C:attention}Merge{} any',
                     '{C:attention}#1#{} selected cards'
                 }
             },

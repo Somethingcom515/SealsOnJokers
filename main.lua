@@ -5067,7 +5067,7 @@ function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominato
     return oldsmodsgetprobabilityvars(trigger_obj, base_numerator, base_denominator, identifier, a, no_mod)
 end
 
-SEALS.joker_value_exclusions = {
+SEALS.card_value_exclusions = {
     x_mult = 1,
     x_chips = 1,
     h_size = 0,
@@ -5091,6 +5091,7 @@ SEALS.joker_value_exclusions = {
     times_played = true,
     colour = true
 }
+SEALS.joker_value_exclusions = SEALS.card_value_exclusions
 
 if Cryptid then
     local blacklist = Cryptid.misprintize_value_blacklist
@@ -5105,7 +5106,7 @@ function SEALS.modify_card_values(card, modifytbl, exclusions, ignoreimmutable, 
     if not card or not modifytbl or (SEALS.has_edition(card, 'e_soe_frozen') and not card.config.center.soe_frozen_immune) or (card.config.center.immutable and not ignoreimmutable) then return end
     local cardwasindeck = card.added_to_deck
     if not nodeckeffects and cardwasindeck then card:remove_from_deck(true) end
-    exclusions = exclusions or SEALS.joker_value_exclusions
+    exclusions = exclusions or SEALS.card_value_exclusions
     local ops = {'=', '+', '-', '*', '/', '%', '^'}
     local function modify_value(ref_table, ref_value, isdirectlyinability)
 		local value = ref_table[ref_value]
@@ -5128,7 +5129,7 @@ function SEALS.modify_card_values(card, modifytbl, exclusions, ignoreimmutable, 
     for k in pairs(card.ability) do
         modify_value(card.ability, k, true)
     end
-    if card.base then
+    if card.base.id then
         for k in pairs(card.base) do
             modify_value(card.base, k, true)
         end
@@ -8266,17 +8267,6 @@ SEALS.config_tab = function()
         ref_value = 'permanentseal2effect',
         callback = emptyfunc
     })
-    --[[
-    configoptions[#configoptions+1] = create_option_cycle({
-        label = 'Get updates from where? (May not work)',
-        options = {'Releases (Mostly stable)', 'main (Less stable)', 'dev (The most unstable)', 'Nowhere'},
-        current_option = SEALS.config.updatelocation or 4,
-        w = 6,
-        scale = 0.8,
-        text_scale = 0.5,
-        opt_callback = 'soe_update_update_location'
-    })
-    ]]
     configoptions[#configoptions+1] = create_toggle({
         label = 'Disable content (Restart required)',
         ref_table = SEALS.config,
@@ -8337,12 +8327,6 @@ SEALS.extra_tabs = function()
         }
     }
 end
-
---[[
-function G.FUNCS.soe_update_update_location(args)
-    SEALS.config.updatelocation = args.to_key
-end
-]]
 
 SEALS.seal_dt = 0
 SEALS.rainbow_seal_dt = 0
@@ -9163,13 +9147,6 @@ SMODS.Joker:take_ownership('j_mr_bones',
     true
 )
 
---[[
-local update_check
-if SEALS.config.updatelocation ~= 4 then
-    update_check = assert(SMODS.load_file('updater.lua'))()
-end
-]]
-
 for _, v in ipairs(NFS.getDirectoryItems(SEALS.path..'custom')) do
     if v ~= '.gitignore' then
         SMODS.load_file('custom/'..v)()
@@ -9178,11 +9155,6 @@ end
 
 local oldsmodsinjectitems = SMODS.injectItems
 function SMODS.injectItems()
-    --[[
-    if update_check then
-        update_check.request_asynchronously()
-    end
-    ]]
     oldsmodsinjectitems()
     G.shared_sleeves = {Plasma = SMODS.create_sprite(0, 0, 71, 95, 'soe_VanillaSleeves', {x = 3, y = 2})}
     G.shared_psyche = SMODS.create_sprite(0, 0, 71, 95, 'soe_Enhancers', {x = 0, y = 1})
@@ -9278,17 +9250,6 @@ function SMODS.injectItems()
         end
     end
 end
-
---[[
-local oldgamemainmenu = Game.main_menu
-function Game.main_menu(...)
-    oldgamemainmenu(...)
-    if update_check then
-        update_check.update_check()
-        update_check = nil
-    end
-end
-]]
 
 SMODS.DrawStep {
     key = 'secondseals',
