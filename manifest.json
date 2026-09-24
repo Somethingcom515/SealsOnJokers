@@ -1,7 +1,7 @@
 {
     "name": "Seals_On_Everything",
     "description": "Allows seals on everything and much more!",
-    "version_number": "4.1.0",
+    "version_number": "4.1.1",
     "dependencies": [
         "Steamodded-Steamodded-26.829.0"
     ],
