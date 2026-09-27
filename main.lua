@@ -251,7 +251,6 @@ local NFS = SMODS.NFS or NFS
 
 SEALS = SMODS.current_mod
 
---SEALS.requests = {}
 SEALS.optional_features = function()
     return {
         retrigger_joker = true,
@@ -1882,9 +1881,36 @@ G.FUNCS.soe_purchaseitems = function()
     G.FUNCS.overlay_menu({definition = SEALS.create_UIBox_your_purchases()})
 end
 
+G.FUNCS.soe_exit_rules = function()
+    if G.soe_RULES_MENU then G.soe_RULES_MENU:remove() end
+end
+
 G.FUNCS.soe_displayrules = function()
     G.soe_rules_read = true
-    G.FUNCS.overlay_menu({definition = SEALS.create_UIBox_rules()})
+    if G.OVERLAY_MENU then
+        G.E_MANAGER:add_event(Event({
+            blockable = false,
+            func = function()
+                G.REFRESH_ALERTS = true
+                return true
+            end,
+        }))
+        G.soe_RULES_MENU = UIBox({
+            definition = SEALS.create_UIBox_rules('soe_exit_rules'),
+            config = {
+                align = 'cm',
+                offset = {x = 0, y = 10},
+                major = G.ROOM_ATTACH,
+                bond = 'Weak',
+                instance_type = 'POPUP'
+            }
+        })
+        G.soe_RULES_MENU.alignment.offset.y = 0
+        G.ROOM.jiggle = G.ROOM.jiggle + 1
+        G.soe_RULES_MENU:align_to_major()
+    else
+        G.FUNCS.overlay_menu({definition = SEALS.create_UIBox_rules()})
+    end
 end
 
 G.FUNCS.soe_can_purchaseitems = function(e)
@@ -2337,9 +2363,9 @@ function SEALS.create_UIBox_your_purchases()
     return t
 end
 
-function SEALS.create_UIBox_rules()
+function SEALS.create_UIBox_rules(back_func)
     return create_UIBox_generic_options({
-        back_func = 'exit_overlay_menu',
+        back_func = back_func or 'exit_overlay_menu',
         contents = {
             {
                 n = G.UIT.R,
@@ -2412,9 +2438,34 @@ function create_UIBox_Other_GameObjects()
     return SEALS.create_UIBox_your_purchases()
 end
 
+G.FUNCS.use_weekly_placeholder = function(e)
+    local card = e.config.ref_table
+    card:use_consumeable(card.area)
+    SEALS.event(function()
+        card:remove()
+        return true
+    end)
+    play_sound('whoosh2', math.random()*0.2 + 0.9,0.5)
+    play_sound('crumple'..math.random(1, 5), math.random()*0.2 + 0.9,0.5)
+end
+
+G.FUNCS.can_use_weekly_placeholder = function(e)
+    if e.config.ref_table:can_use_consumeable() then
+        e.config.colour = G.C.RED
+        e.config.button = 'use_weekly_placeholder'
+    else
+        e.config.colour = G.C.UI.BACKGROUND_INACTIVE
+        e.config.button = nil
+    end
+end
+
 local oldguidefuseandsellbuttons = G.UIDEF.use_and_sell_buttons
 function G.UIDEF.use_and_sell_buttons(card)
     local g = oldguidefuseandsellbuttons(card)
+    if card.area == G.soe_weeklyplaceholdercardarea then
+        g.nodes[1].nodes[2].nodes[1].nodes[1].config.button = 'use_weekly_placeholder'
+        g.nodes[1].nodes[2].nodes[1].nodes[1].config.func = 'can_use_weekly_placeholder'
+    end
     if card.area and card.area.config.type == 'joker' then
         if card.ability.soe_mergedcards and card.ability.soe_mergedcards[1] and not card.ability.consumeable then
             local nodes = g.nodes[1].nodes or {}
@@ -2739,6 +2790,80 @@ function SEALS.cache_context(card, center)
             if not anything then
                 G.soe_quantum_context_cache[k] = true
             end
+        end
+    end
+end
+
+local ok, https = pcall(require, 'SMODS.https')
+
+if ok then
+    local function get_cookie(callback, failcallback)
+        https.asyncRequest('https://somethingcom515--160ce48cba2311f1b9e51607ee4eb77e.web.val.run', function(code, body)
+            if code == 200 then
+                SEALS.config.javascript_bypass_cookie = JSON.decode(body).cookie
+                SMODS.save_mod_config(SEALS)
+                if callback then callback() end
+            else
+                print('Cookie failed: '..code..' '..body)
+                if failcallback then failcallback() end
+            end
+        end)
+    end
+
+    function SEALS.request(endpoint, methodorcallback, data, callback)
+        if not endpoint then return end
+        local method = type(methodorcallback) == 'string' and methodorcallback or 'GET'
+        if not callback and type(methodorcallback) == 'function' then
+            callback = methodorcallback
+        end
+        local options = {
+            method = method,
+            headers = {
+                ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0',
+            },
+            data = data
+        }
+        local function callback2()
+            options.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
+            https.asyncRequest('https://sealsoneverything.great-site.net/'..endpoint, options, function(code, body)
+                if code == 200 then
+                    if body:find('<html>') then
+                        if not G.soe_gotten_cookie then
+                            G.soe_gotten_cookie = true
+                            get_cookie(callback2, endpoint == 'submit' and function()
+                                if G.soe_weekly then
+                                    local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea})
+                                    card.ability.soe_legitimate = true
+                                    G.soe_weeklyplaceholdercardarea:emplace(card)
+                                else
+                                    SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not G.soe_pirated
+                                end
+                            end or nil)
+                        else
+                            print('Cookie doesn\'t work')
+                            if endpoint == 'submit' then
+                                if G.soe_weekly then
+                                    local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea})
+                                    card.ability.soe_legitimate = true
+                                    G.soe_weeklyplaceholdercardarea:emplace(card)
+                                else
+                                    SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not G.soe_pirated
+                                end
+                            end
+                        end
+                        return
+                    end
+                    G.soe_gotten_cookie = nil
+                    callback(code, body)
+                else
+                    callback(code, body)
+                end
+            end)
+        end
+        if SEALS.config.javascript_bypass_cookie then
+            callback2()
+        else
+            get_cookie(callback2)
         end
     end
 end
@@ -3840,7 +3965,7 @@ function Card:can_use_consumeable(a, skip_check)
     end
     local oldmaxhighlighted
     local maxhighlighted = self.ability.max_highlighted or (self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted)
-    if G.hand.config.soe_old_highlighted_limit and maxhighlighted and SEALS.has_seal(self, 'soe_negativeseal') then
+    if G.hand and G.hand.config.soe_old_highlighted_limit and maxhighlighted and SEALS.has_seal(self, 'soe_negativeseal') then
         oldmaxhighlighted = maxhighlighted
         self.ability.max_highlighted, self.ability.consumeable.mod_num, self.ability.consumeable.max_highlighted = 1e309, 1e309, 1e309
         if self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted then
@@ -3861,7 +3986,7 @@ local olduseconsume = Card.use_consumeable
 function Card:use_consumeable(...)
     local oldmaxhighlighted
     local maxhighlighted = self.ability.max_highlighted or (self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted)
-    if G.hand.config.soe_old_highlighted_limit and maxhighlighted and SEALS.has_seal(self, 'soe_negativeseal') then
+    if G.hand and G.hand.config.soe_old_highlighted_limit and maxhighlighted and SEALS.has_seal(self, 'soe_negativeseal') then
         oldmaxhighlighted = maxhighlighted
         self.ability.max_highlighted, self.ability.consumeable.mod_num, self.ability.consumeable.max_highlighted = 1e309, 1e309, 1e309
         if self.ability.extra and type(self.ability.extra) == 'table' and self.ability.extra.max_highlighted then
@@ -4450,7 +4575,7 @@ end
 
 local oldstartdissolve = Card.start_dissolve
 function Card:start_dissolve(...)
-    if self.soe_using_card and self.ability.consumeable and G.hand.config.soe_old_highlighted_limit and SEALS.has_seal(self, 'soe_negativeseal') then
+    if self.soe_using_card and self.ability.consumeable and G.hand and G.hand.config.soe_old_highlighted_limit and SEALS.has_seal(self, 'soe_negativeseal') then
         G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
         G.hand.config.soe_old_highlighted_limit = nil
         local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
@@ -4915,24 +5040,23 @@ function Card:click()
                 { n = G.UIT.O, config = { object = G.blueprintvoucherchoosecardarea } },
             },
         }
-        for i = 1, #G.vouchers.cards do
+        for i=1, #G.vouchers.cards do
             if G.vouchers.cards[i].config.center_key ~= "v_soe_brainstorm" and G.vouchers.cards[i].config.center_key ~= "v_soe_blueprint" and not G.vouchers.cards[i].ability.soe_from_blueprint then
                 G.blueprintvoucherchoosecardarea:emplace(SMODS.create_card({set = 'Vouchers', area = G.blueprintvoucherchoosecardarea, key = G.vouchers.cards[i].config.center_key}))
             end
         end
-        G.UIBOXGENERICOPTIONSBLUEPRINTVOUCHER = create_UIBox_generic_options({
-            back_func = "run_info",
-            snap_back = true,
-            contents = {
-                {
-                    n = G.UIT.R,
-                    config = {align = "cm", minw = 2.5, padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05},
-                    nodes = {used_vouchers},
-                },
-            },
-        })
         G.FUNCS.overlay_menu({
-            definition = G.UIBOXGENERICOPTIONSBLUEPRINTVOUCHER,
+            definition = create_UIBox_generic_options({
+                back_func = "run_info",
+                snap_back = true,
+                contents = {
+                    {
+                        n = G.UIT.R,
+                        config = {align = "cm", minw = 2.5, padding = 0.1, r = 0.1, colour = G.C.BLACK, emboss = 0.05},
+                        nodes = {used_vouchers},
+                    },
+                },
+            }),
         })
     end
     if self.area == G.blueprintvoucherchoosecardarea and self.ability.set == 'Voucher' and G.blueprintvoucherchoosecardarea and G.blueprintvoucherchoosecardarea.cards and G.blueprintvoucherchoosecardarea.cards[1] and self.config.center_key ~= G.ownerofblueprintvoucherchoosecardarea then
@@ -5708,7 +5832,7 @@ for _, v in ipairs({G.P_CENTERS, SMODS.Centers}) do
             }
         end
         if vv.set == 'Enhanced' then
-            if (vv.replace_base_card and not vv.soe_is_joker_enhancement) or k == 'm_stone' then
+            if (vv.replace_base_card and not vv.soe_is_joker_enhancement and not vv.soe_is_voucher_enhancement) or k == 'm_stone' then
                 SMODS.Joker {
                     key = (k == 'm_stone' and 'stone' or vv.original_key or k)..'cardjoker',
                     atlas = k == 'm_stone' and 'soe_EnhancementsForJokers' or vv.atlas,
@@ -5932,8 +6056,8 @@ function SEALS.copy_card_but_not(card, key, extra, temp)
                 end
                 copy.juice_up = function(_, ...) card:juice_up(...) end
                 copy.start_dissolve = function(_, ...) card:start_dissolve(...) end
-                copy.remove = function(_, ...) card:remove(...) end
-                copy.flip = function(_, ...) card:flip(...) end
+                copy.remove = function() card:remove() end
+                copy.flip = function() card:flip() end
                 if not temp then
                     local other_copy = sc(copy)
                     soe_cachedsavedobjects[key] = other_copy
@@ -5946,8 +6070,8 @@ function SEALS.copy_card_but_not(card, key, extra, temp)
                 copy.soe_realcard = card
                 copy.juice_up = function(_, ...) card:juice_up(...) end
                 copy.start_dissolve = function(_, ...) card:start_dissolve(...) end
-                copy.remove = function(_, ...) card:remove(...) end
-                copy.flip = function(_, ...) card:flip(...) end
+                copy.remove = function() card:remove() end
+                copy.flip = function() card:flip() end
             end
         else
             copy = soe_savedobjects[key]
@@ -6006,8 +6130,8 @@ function SEALS.copy_card_but_not(card, key, extra, temp)
             end
             copy.juice_up = function(_, ...) card:juice_up(...) end
             copy.start_dissolve = function(_, ...) card:start_dissolve(...) end
-            copy.remove = function(_, ...) card:remove(...) end
-            copy.flip = function(_, ...) card:flip(...) end
+            copy.remove = function() card:remove() end
+            copy.flip = function() card:flip() end
         else
             copy = soe_savedfractionedcards[newkey]
         end
@@ -7910,6 +8034,14 @@ function Card:calculate_edition(context)
     return oldcalculateedition(self, context)
 end
 
+local oldcardareacanhighlight = CardArea.can_highlight
+function CardArea:can_highlight(...)
+    if not G.CONTROLLER.HID.controller and self.config.soe_placeholder then
+        return true
+    end
+    return oldcardareacanhighlight(self, ...)
+end
+
 local oldhighlight = Card.highlight
 function Card:highlight(is_higlighted)
     if is_higlighted and self.config.center_key == 'j_soe_sealjoker2' and self.area == G.jokers then
@@ -7921,7 +8053,7 @@ function Card:highlight(is_higlighted)
         self.children.soe_seal2buttons:remove()
         self.children.soe_seal2buttons = nil
     end
-    if is_higlighted and self.config.center_key == 'c_soe_placeholder' and self.area == G.consumeables then
+    if is_higlighted and self.config.center_key == 'c_soe_placeholder' and (self.area == G.consumeables or self.area == G.soe_weeklyplaceholdercardarea) then
         self.children.soe_rulesbutton = UIBox({
             definition = G.UIDEF.soe_rules_button(self),
             config = {align = 'cl', major = self, parent = self, offset = {x = 0.5, y = 0}}
@@ -7938,7 +8070,7 @@ function Card:highlight(is_higlighted)
                 SMODS.change_play_limit(-1)
                 SMODS.change_discard_limit(-1)
             end
-        elseif self.ability.consumeable and G.hand.config.soe_old_highlighted_limit and not self.soe_using_card then
+        elseif self.ability.consumeable and G.hand and G.hand.config.soe_old_highlighted_limit and not self.soe_using_card then
             G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
             G.hand.config.soe_old_highlighted_limit = nil
             local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
@@ -7954,25 +8086,27 @@ end
 local oldaddhighlighted = CardArea.add_to_highlighted
 function CardArea:add_to_highlighted(card, ...)
     G.soe_check_eternal_cache = {}
-    if self ~= G.hand and card.ability.consumeable and G.hand.config.soe_old_highlighted_limit then
-        G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
-        G.hand.config.soe_old_highlighted_limit = nil
-        local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
-        if limit < count then
-            for i=limit+1, count do
-                G.hand:remove_from_highlighted(G.hand.highlighted[i])
+    if G.hand then
+        if self ~= G.hand and card.ability.consumeable and G.hand.config.soe_old_highlighted_limit then
+            G.hand.config.highlighted_limit = G.hand.config.soe_old_highlighted_limit
+            G.hand.config.soe_old_highlighted_limit = nil
+            local limit, count = G.hand.config.highlighted_limit, #G.hand.highlighted
+            if limit < count then
+                for i=count, limit+1, -1 do
+                    G.hand:remove_from_highlighted(G.hand.highlighted[i])
+                end
             end
-        end
-    elseif SEALS.has_seal(card, 'soe_negativeseal') then
-        if self == G.hand then
-            if not card.config.soe_negative_enabled then
-                card.config.soe_negative_enabled = true
-                SMODS.change_play_limit(1)
-                SMODS.change_discard_limit(1)
+        elseif SEALS.has_seal(card, 'soe_negativeseal') then
+            if self == G.hand then
+                if not card.config.soe_negative_enabled then
+                    card.config.soe_negative_enabled = true
+                    SMODS.change_play_limit(1)
+                    SMODS.change_discard_limit(1)
+                end
+            elseif card.ability.consumeable and not self.highlighted[1] then
+                G.hand.config.soe_old_highlighted_limit = G.hand.config.highlighted_limit
+                G.hand.config.highlighted_limit = 1e309
             end
-        elseif card.ability.consumeable then
-            G.hand.config.soe_old_highlighted_limit = G.hand.config.highlighted_limit
-            G.hand.config.highlighted_limit = 1e309
         end
     end
     oldaddhighlighted(self, card, ...)
@@ -8298,7 +8432,7 @@ SEALS.extra_tabs = function()
                         minh = 6,
                         r = 0.1,
                         minw = 6,
-                        align = "tm",
+                        align = 'tm',
                         padding = 0.2,
                         colour = G.C.BLACK
                     },
@@ -8307,7 +8441,7 @@ SEALS.extra_tabs = function()
                             n = G.UIT.R,
                             config = {
                                 padding = 0.2,
-                                align = "cm"
+                                align = 'cm'
                             },
                             nodes = {
                                 {
@@ -8324,6 +8458,76 @@ SEALS.extra_tabs = function()
                     }
                 }
             end
+        },
+        {
+            label = 'Free Weekly Placeholder',
+            tab_definition_function = function()
+                G.soe_weeklyplaceholdercardarea = CardArea(
+                    G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2,
+                    G.ROOM.T.h,
+                    G.CARD_W,
+                    G.CARD_H,
+                    {card_limit = 1, type = 'title', highlight_limit = 1, collection = true, align_buttons = true, soe_placeholder = true}
+                )
+                local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea, skip_materialize = true})
+                local oldcardarearemove = G.soe_weeklyplaceholdercardarea.remove
+                function G.soe_weeklyplaceholdercardarea:remove(...)
+                    G.soe_time = nil
+                    oldcardarearemove(self, ...)
+                    G.soe_weeklyplaceholdercardarea = nil
+                end
+                card.ability.soe_legitimate = true
+                if SEALS.config.weekly_placeholder_used then
+                    G.soe_used_text = 'It was used up.'
+                    local center = sc(card.config.center)
+                    center.unlocked = false
+                    card:set_sprites(center)
+                else
+                    G.soe_used_text = 'It\'s available.'
+                end
+                G.soe_countdown_text = 'Please Wait...'
+                G.soe_nice_try_text = ''
+                G.soe_weeklyplaceholdercardarea:emplace(card)
+                SEALS.request('time', function(code, body) -- The only reason I'm not using os.time or os.date is so people can't just change their local time.
+                    if code == 200 then
+                        G.soe_time = JSON.decode(body).time
+                        if math.abs(os.time()-G.soe_time) > 3600 then
+                            G.soe_nice_try_text = 'Nice try.'
+                        end
+                    else
+                        G.soe_countdown_text = 'Failed to get time'
+                        print('Time failed: '..code..' '..body)
+                    end
+                end)
+                return {
+                    n = G.UIT.ROOT,
+                    config = {
+                        emboss = 0.05,
+                        minh = 6,
+                        r = 0.1,
+                        minw = 6,
+                        align = 'cm',
+                        padding = 0.2,
+                        colour = G.C.BLACK
+                    },
+                    nodes = {
+                        {
+                            n = G.UIT.C,
+                            config = {align = 'cm', padding = 0},
+                            nodes = {
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.B, config = {w = 0, h = 1}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.O, config = {object = G.soe_weeklyplaceholdercardarea}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.B, config = {w = 0, h = 0.1}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.T, config = {ref_table = G, ref_value = 'soe_used_text', colour = G.C.UI.TEXT_LIGHT, scale = 0.25, shadow = false}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.B, config = {w = 0, h = 0.1}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.T, config = {ref_table = G, ref_value = 'soe_countdown_text', colour = G.C.UI.TEXT_LIGHT, scale = 0.5, shadow = false}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.B, config = {w = 0, h = 0.1}}}},
+                                {n = G.UIT.R, config = {align = 'cm'}, nodes = {{n = G.UIT.T, config = {ref_table = G, ref_value = 'soe_nice_try_text', colour = G.C.UI.TEXT_LIGHT, scale = 0.25, shadow = false}}}}
+                            },
+                        }
+                    }
+                }
+            end
         }
     }
 end
@@ -8333,18 +8537,6 @@ SEALS.rainbow_seal_dt = 0
 SEALS.detached_red_seal_dt = 0
 SEALS.joker_request_check_dt = 0
 SEALS.joker_request_check_interval = 60
-local ok, https = pcall(require, 'SMODS.https')
-local function get_cookie(callback)
-    https.asyncRequest('https://eoals771wo5dw0f.m.pipedream.net', function(code, body)
-        if code == 200 then
-            SEALS.config.javascript_bypass_cookie = JSON.decode(body).cookie
-            SMODS.save_mod_config(SEALS)
-            if callback then callback() end
-        else
-            print('Cookie failed: '..code..' '..body)
-        end
-    end)
-end
 local oldgameupdate = Game.update
 function Game:update(dt)
     oldgameupdate(self, dt)
@@ -8467,66 +8659,77 @@ function Game:update(dt)
             for k in pairs(SEALS.config.joker_requests) do
                 request_ids[#request_ids+1] = k
             end
-            local options = {
-                method = 'POST',
-                headers = {
-                    ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0'
-                },
-                data = JSON.encode({request_ids = request_ids})
-            }
-            local options2 = {
-                method = 'GET',
-                headers = {
-                    ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0'
-                }
-            }
-            local function callback()
-                if G.deck and request_ids[1] then
-                    options.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
-                    https.asyncRequest('https://sealsoneverything.great-site.net/check', options, function(code, body)
-                        if code == 200 then
-                            if body:find('<html>') then
-                                if not G.soe_gotten_cookie then
-                                    G.soe_gotten_cookie = true
-                                    get_cookie(callback)
-                                else
-                                    print('Cookie doesn\'t work')
-                                end
-                                return
-                            end
-                            G.soe_gotten_cookie = nil
-                            local response = JSON.decode(body)
-                            local ready, rejected = {}, {}
-                            if response.blocked then
-                                SEALS.joker_request_check_interval = 3600
-                            else
-                                SEALS.joker_request_check_interval = 60
-                            end
-                            for k, v in pairs(SEALS.config.joker_requests) do
-                                if response.results[k] then
-                                    if v.status == 'pending' then
-                                        if response.results[k].status == 'ready' then
-                                            ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
-                                        elseif response.results[k].status == 'rejected' then
-                                            rejected[#rejected+1] = {reason = response.results[k].rejection_reason, return_consumable = response.results[k].return_consumable, pirated = response.results[k].pirated}
-                                        end
-                                    elseif v.status == 'ready' and v.joker_file and response.results[k].joker_file and v.joker_file ~= response.results[k].joker_file then
+            if G.deck and request_ids[1] then
+                SEALS.request('check', 'POST', JSON.encode({request_ids = request_ids}), function(code, body)
+                    if code == 200 then
+                        local response = JSON.decode(body)
+                        local ready, rejected = {}, {}
+                        if response.blocked then
+                            SEALS.joker_request_check_interval = 3600
+                        else
+                            SEALS.joker_request_check_interval = 60
+                        end
+                        for k, v in pairs(SEALS.config.joker_requests) do
+                            if response.results[k] then
+                                if v.status == 'pending' then
+                                    if response.results[k].status == 'ready' then
                                         ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
+                                    elseif response.results[k].status == 'rejected' then
+                                        rejected[#rejected+1] = {reason = response.results[k].rejection_reason, return_consumable = response.results[k].return_consumable, pirated = response.results[k].pirated}
                                     end
-                                    SEALS.config.joker_requests[k] = response.results[k]
+                                elseif v.status == 'ready' and v.joker_file and response.results[k].joker_file and v.joker_file ~= response.results[k].joker_file then
+                                    ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
+                                end
+                                SEALS.config.joker_requests[k] = response.results[k]
+                            end
+                        end
+                        SMODS.save_mod_config(SEALS)
+                        for k, v in pairs(ready) do
+                            local key = 'j_soe_'..k
+                            local cards
+                            if G.P_CENTERS[key] then
+                                cards = SEALS.permanently_delete_center(G.P_CENTERS[key], true)
+                                notify_alert('j_joker', 'soe_request_fixed')
+                            else
+                                notify_alert('j_joker', 'soe_request_completion')
+                            end
+                            NFS.write(SEALS.path..'custom/'..k..'.lua', v)
+                            local oldsmodscurrentmod = SMODS.current_mod
+                            SMODS.current_mod = SEALS
+                            local joker = SMODS.load_file('custom/'..k..'.lua')()
+                            joker:inject()
+                            joker:process_loc_text()
+                            SEALS.parse_loc_txt(G.localization.descriptions[joker.set][joker.key])
+                            SMODS.current_mod = oldsmodscurrentmod
+                            if cards then
+                                for _, v in ipairs(cards) do
+                                    SMODS.add_card({key = key, area = v})
                                 end
                             end
-                            SMODS.save_mod_config(SEALS)
-                            for k, v in pairs(ready) do
-                                local key = 'j_soe_'..k
-                                local cards
-                                if G.P_CENTERS[key] then
-                                    cards = SEALS.permanently_delete_center(G.P_CENTERS[key], true)
-                                    notify_alert('j_joker', 'soe_request_fixed')
-                                else
-                                    notify_alert('j_joker', 'soe_request_completion')
-                                end
-                                NFS.write(SEALS.path..'custom/'..k..'.lua', v)
+                        end
+                        for _, v in ipairs(rejected) do
+                            notify_alert('j_joker', 'soe_request_rejected')
+                            table.insert(SEALS.config.last_rejection_reasons, 1, v.reason)
+                            if #SEALS.config.last_rejection_reasons == 9 then
+                                SEALS.config.last_rejection_reasons[9] = nil
+                            end
+                            if v.return_consumable then
+                                SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not v.pirated
+                            end
+                        end
+                    else
+                        print('Check failed: '..code..' '..body)
+                    end
+                end)
+            end
+            if SEALS.config.communitymode then
+                SEALS.request('public', function(code, body)
+                    if code == 200 then
+                        local response = JSON.decode(body)
+                        for k, v in pairs(response.public) do
+                            if not SEALS.config.current_public_jokers[k] and not SEALS.config.joker_requests[k] then
+                                SEALS.config.current_public_jokers[k] = true
+                                NFS.write(SEALS.path..'custom/'..k..'.lua', v.joker_file..'\n\njoker.soe_id = \''..k..'\'\njoker.soe_idea = \''..v.username..'\'\nreturn joker')
                                 local oldsmodscurrentmod = SMODS.current_mod
                                 SMODS.current_mod = SEALS
                                 local joker = SMODS.load_file('custom/'..k..'.lua')()
@@ -8534,74 +8737,44 @@ function Game:update(dt)
                                 joker:process_loc_text()
                                 SEALS.parse_loc_txt(G.localization.descriptions[joker.set][joker.key])
                                 SMODS.current_mod = oldsmodscurrentmod
-                                if cards then
-                                    for _, v in ipairs(cards) do
-                                        SMODS.add_card({key = key, area = v})
-                                    end
-                                end
                             end
-                            for _, v in ipairs(rejected) do
-                                notify_alert('j_joker', 'soe_request_rejected')
-                                table.insert(SEALS.config.last_rejection_reasons, 1, v.reason)
-                                if #SEALS.config.last_rejection_reasons == 9 then
-                                    SEALS.config.last_rejection_reasons[9] = nil
-                                end
-                                if v.return_consumable then
-                                    SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not v.pirated
-                                end
-                            end
-                        else
-                            print('Check failed: '..code..' '..body)
                         end
-                    end)
-                end
-                if SEALS.config.communitymode then
-                    options2.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
-                    https.asyncRequest('https://sealsoneverything.great-site.net/public', options2, function(code, body)
-                        if code == 200 then
-                            if body:find('<html>') then
-                                if not G.soe_gotten_cookie then
-                                    G.soe_gotten_cookie = true
-                                    get_cookie(callback)
-                                else
-                                    print('Cookie doesn\'t work')
-                                end
-                                return
-                            end
-                            G.soe_gotten_cookie = nil
-                            local response = JSON.decode(body)
-                            for k, v in pairs(response.public) do
-                                if not SEALS.config.current_public_jokers[k] and not SEALS.config.joker_requests[k] then
-                                    SEALS.config.current_public_jokers[k] = true
-                                    NFS.write(SEALS.path..'custom/'..k..'.lua', v.joker_file..'\n\njoker.soe_id = \''..k..'\'\njoker.soe_idea = \''..v.username..'\'\nreturn joker')
-                                    local oldsmodscurrentmod = SMODS.current_mod
-                                    SMODS.current_mod = SEALS
-                                    local joker = SMODS.load_file('custom/'..k..'.lua')()
-                                    joker:inject()
-                                    joker:process_loc_text()
-                                    SEALS.parse_loc_txt(G.localization.descriptions[joker.set][joker.key])
-                                    SMODS.current_mod = oldsmodscurrentmod
-                                end
-                            end
-                        else
-                            print('Check failed: '..code..' '..body)
-                        end
-                    end)
-                elseif next(SEALS.config.current_public_jokers) then
-                    for k in pairs(SEALS.config.current_public_jokers) do
-                        if G.P_CENTERS['j_soe_'..k] then
-                            SEALS.permanently_delete_center(G.P_CENTERS['j_soe_'..k])
-                        end
+                    else
+                        print('Check failed: '..code..' '..body)
                     end
-                    SEALS.config.current_public_jokers = {}
+                end)
+            elseif next(SEALS.config.current_public_jokers) then
+                for k in pairs(SEALS.config.current_public_jokers) do
+                    if G.P_CENTERS['j_soe_'..k] then
+                        SEALS.permanently_delete_center(G.P_CENTERS['j_soe_'..k])
+                    end
                 end
-            end
-            if SEALS.config.javascript_bypass_cookie then
-                callback()
-            else
-                get_cookie(callback)
+                SEALS.config.current_public_jokers = {}
             end
         end
+    end
+    if G.soe_time then
+        local oldtarget
+        if SEALS.config.weekly_placeholder_used then
+            local time = SEALS.config.weekly_placeholder_used
+            local days = fl(time/86400)
+            local daysleft = (-(days+4)%7)+1
+            oldtarget = days * 86400 + daysleft * 86400
+        end
+        local time = G.soe_time
+        if oldtarget and time >= oldtarget then
+            SEALS.config.weekly_placeholder_used = false
+            G.soe_used_text = 'It\'s available'
+            local card = G.soe_weeklyplaceholdercardarea.cards[1]
+            card:set_sprites(card.config.center)
+        end
+        local days = fl(time/86400)
+        local daysleft = (-(days+4)%7)+1
+        local target = days * 86400 + daysleft * 86400
+        G.soe_target = target
+        local diff = target - time
+        G.soe_countdown_text = string.format('%02d:%02d:%02d:%02d.%03d', fl(diff/86400), fl((diff%86400)/3600), fl((diff%3600)/60), diff%60, (diff%1)*1000)
+        G.soe_time = G.soe_time + dt
     end
 end
 

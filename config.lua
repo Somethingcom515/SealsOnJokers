@@ -7,4 +7,5 @@ return {
 	joker_requests = {},
 	last_rejection_reasons = {},
 	current_public_jokers = {},
+	weekly_placeholder_used = false
 }

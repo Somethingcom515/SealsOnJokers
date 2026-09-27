@@ -355,13 +355,11 @@ SMODS.Consumable{
     end
 }
 
-local ok, https = pcall(require, 'SMODS.https')
-
-if ok then
+if SEALS.request then
     local function generate_uuid()
         local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
         return (string.gsub(template, '[xy]', function(c)
-            if c == "x" then
+            if c == 'x' then
                 local v = math.random(0, 15)
                 return string.format('%x', v)
             else
@@ -371,75 +369,63 @@ if ok then
         end))
     end
 
-    local function get_cookie(callback)
-        https.asyncRequest('https://eoals771wo5dw0f.m.pipedream.net', function(code, body)
-            if code == 200 then
-                SEALS.config.javascript_bypass_cookie = JSON.decode(body).cookie
-                SMODS.save_mod_config(SEALS)
-                if callback then callback() end
-            else
-                print('Cookie failed: '..code..' '..body)
-            end
-        end)
-    end
-
     G.FUNCS.soe_exit_request = function()
         if G.soe_CHOOSE_REQUEST then G.soe_CHOOSE_REQUEST:remove() end
-        SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not G.soe_pirated
+        if G.soe_weekly then
+            local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea})
+            card.ability.soe_legitimate = true
+            G.soe_weeklyplaceholdercardarea:emplace(card)
+        else
+            SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not G.soe_pirated
+        end
         G.soe_pirated = nil
     end
 
     function G.FUNCS.soe_request()
         if G.soe_CHOOSE_REQUEST then G.soe_CHOOSE_REQUEST:remove() end
         local id = generate_uuid()
-        local options = {
-            method = 'POST',
-            headers = {
-                ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0'
-            },
-            data = JSON.encode({
-                request_id = id,
-                request = G.soe_ENTERED_REQUEST,
-                pirated = G.soe_pirated,
-                rarity = G.soe_ENTERED_REQUEST_RARITY,
-                public = G.soe_ENTERED_REQUEST_PUBLIC,
-                username = G.soe_ENTERED_REQUEST_USERNAME
-            })
-        }
-        local function callback()
-            options.headers['Cookie'] = SEALS.config.javascript_bypass_cookie
-            https.asyncRequest('https://sealsoneverything.great-site.net/submit', options, function(code, body)
-                if code == 200 then
-                    if body:find('<html>') then
-                        if not G.soe_gotten_cookie then
-                            G.soe_gotten_cookie = true
-                            get_cookie(callback)
-                        else
-                            print('Cookie doesn\'t work')
-                        end
-                        return
-                    end
-                    G.soe_gotten_cookie = nil
-                    SEALS.joker_request_check_interval = 60
-                    local json = JSON.decode(body)
-                    SEALS.config.joker_requests[id] = json.result
-                    SMODS.save_mod_config(SEALS)
-                elseif code == 403 then
-                    SEALS.joker_request_check_interval = 3600
-                    print('You are blocked')
+        local data = JSON.encode({
+            request_id = id,
+            request = G.soe_ENTERED_REQUEST,
+            pirated = G.soe_pirated,
+            rarity = G.soe_ENTERED_REQUEST_RARITY,
+            public = G.soe_ENTERED_REQUEST_PUBLIC,
+            username = G.soe_ENTERED_REQUEST_USERNAME
+        })
+        SEALS.request('submit', 'POST', data, function(code, body)
+            if code == 200 then
+                SEALS.joker_request_check_interval = 60
+                local json = JSON.decode(body)
+                SEALS.config.joker_requests[id] = json.result
+                if G.soe_weekly then
+                    SEALS.config.weekly_placeholder_used = G.soe_time
+                    local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea})
+                    G.soe_used_text = 'It was used up.'
+                    local center = SMODS.shallow_copy(card.config.center)
+                    center.unlocked = false
+                    card:set_sprites(center)
+                    G.soe_weeklyplaceholdercardarea:emplace(card)
+                end
+                SMODS.save_mod_config(SEALS)
+            elseif code == 403 then
+                SEALS.joker_request_check_interval = 3600
+                print('You are blocked')
+            else
+                print('Submission failed: '..code..' '..body)
+                if G.soe_weekly then
+                    local card = SMODS.create_card({key = 'c_soe_placeholder', area = G.soe_weeklyplaceholdercardarea})
+                    card.ability.soe_legitimate = true
+                    G.soe_weeklyplaceholdercardarea:emplace(card)
                 else
-                    print('Submission failed: '..code..' '..body)
                     SMODS.add_card({key = 'c_soe_placeholder'}).ability.soe_legitimate = not G.soe_pirated
                 end
-                G.soe_pirated = nil
+            end
+            if not G.soe_pirated and not G.soe_weekly then
                 save_run()
-            end)
-        end
-        if SEALS.config.javascript_bypass_cookie then
-            callback()
-        else
-            get_cookie(callback)
-        end
+            end
+            G.soe_pirated = nil
+            G.soe_weekly = nil
+        end)
     end
 
     local oldcreateuiboxnotifyalert = create_UIBox_notify_alert
@@ -594,11 +580,14 @@ if ok then
         discovered = true,
         select_card = 'consumeables',
         use = function(_, card)
+            if card.area and card.area == G.soe_weeklyplaceholdercardarea then
+                G.soe_weekly = true
+            end
             G.soe_pirated = not card.ability.soe_legitimate
             G.FUNCS.soe_enter_request()
         end,
-        can_use = function()
-            return G.soe_rules_read
+        can_use = function(_, card)
+            return G.soe_rules_read and (card.area ~= G.soe_weeklyplaceholdercardarea or (G.soe_time and not SEALS.config.weekly_placeholder_used))
         end
     }
 end
