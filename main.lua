@@ -8483,7 +8483,7 @@ SEALS.extra_tabs = function()
                     center.unlocked = false
                     card:set_sprites(center)
                 else
-                    G.soe_used_text = 'It\'s available.'
+                    G.soe_used_text = 'It\'s available. Click to use.'
                 end
                 G.soe_countdown_text = 'Please Wait...'
                 G.soe_nice_try_text = ''
