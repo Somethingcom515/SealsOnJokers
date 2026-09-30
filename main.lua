@@ -8773,7 +8773,7 @@ function Game:update(dt)
         local target = days * 86400 + daysleft * 86400
         G.soe_target = target
         local diff = target - time
-        G.soe_countdown_text = string.format('%02d:%02d:%02d:%02d.%03d', fl(diff/86400), fl((diff%86400)/3600), fl((diff%3600)/60), diff%60, (diff%1)*1000)
+        G.soe_countdown_text = string.format('Next in: %02d:%02d:%02d:%02d.%03d', fl(diff/86400), fl((diff%86400)/3600), fl((diff%3600)/60), diff%60, (diff%1)*1000)
         G.soe_time = G.soe_time + dt
     end
 end
