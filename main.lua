@@ -2820,6 +2820,7 @@ if ok then
             method = method,
             headers = {
                 ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0',
+                ['Content-Type'] = method == 'POST' and 'application/json' or nil
             },
             data = data
         }
@@ -6148,9 +6149,9 @@ function card_eval_status_text(card, a, b, c, d, extra)
     if card.soe_realcard then
         if extra then extra.focus = nil end
         return oldcardevalstatustext(card.soe_realcard, a, b, c, d, extra)
-    elseif G.soe_truer_card and G.soe_truer_card[card] then
+    elseif card.soe_truer_card then
         if extra then extra.focus = nil end
-        return oldcardevalstatustext(G.soe_truer_card[card], a, b, c, d, extra)
+        return oldcardevalstatustext(card.soe_truer_card, a, b, c, d, extra)
     end
     return oldcardevalstatustext(card, a, b, c, d, extra)
 end
@@ -6368,15 +6369,15 @@ function SEALS.get_line_range_from_file(path, linestart, lineend)
     return text
 end
 
-function SEALS.get_line_from_function(func)
-    local info = debug.getinfo(func, 'Sl')
+function SEALS.get_function_as_string(func)
+    local info = debug.getinfo(func, 'S')
     local loader, modid, path = info.source:match("=%[(.+) (.+) \"(.+)\"%]")
     local fullpath
-    if not modid then fullpath = SMODS.MODS_DIR..'/lovely/game-dump/'..info.source:gsub('^@', '') else
-    fullpath = SMODS.MODS_DIR..'/lovely/game-dump/'..loader..'/'..modid..'/'..path
-    if not NFS.getInfo(fullpath) then fullpath = SMODS.Mods[modid].path..path end end
+    if not modid then fullpath = SMODS.MODS_DIR..'/lovely/dump/'..info.source:gsub('^@', '') else
+    fullpath = SMODS.MODS_DIR..'/lovely/dump/'..loader..'/'..modid..'/'..path
+    if not NFS.getInfo(fullpath) then fullpath = (modid == '_' and SMODS or SMODS.Mods[modid]).path..path end end
     if not NFS.getInfo(fullpath) then return end
-    return SEALS.get_line_range_from_file(fullpath, info.currentline, info.currentline)[1]
+    return table.concat(SEALS.get_line_range_from_file(fullpath, info.linedefined, info.lastlinedefined), '\n')
 end
 
 --[[
@@ -9414,9 +9415,9 @@ function SMODS.injectItems()
             if G.soe_redsealretriggering or G.soe_mergedcardusing then
                 local oldeventfunc = event.func
                 event.func = function()
-                    local ok, err = pcall(oldeventfunc)
-                    if not ok then sendErrorMessage(err, 'SEALS') end
-                    return ok and err or true
+                    local ok2, err = pcall(oldeventfunc)
+                    if not ok2 then sendErrorMessage(err, 'SEALS') end
+                    return not ok2 or err
                 end
             end
             oldeventmanageraddevent(self, event, ...)

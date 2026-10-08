@@ -10,7 +10,7 @@
 	"badge_text_colour": "FFFFFF",
 	"display_name": "Seals On Everything",
 	"icon_path": "modicon.png",
-	"version": "4.1.1",
+	"version": "4.1.2",
 	"dependencies": [
 		"Steamodded (>=26.829.0)",
 		"Lovely (>=0.10.0)", 

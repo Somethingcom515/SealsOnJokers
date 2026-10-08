@@ -19,17 +19,7 @@ if card and card.ability then
         local credit
         for _, v in ipairs(card.ability.soe_legalenhancements) do
             local center = G.P_CENTERS[v]
-            --info_queue[#info_queue+1] = center
-            local other_center = SMODS.shallow_copy(center)
-            local oldlocvars = other_center.loc_vars
-            other_center.loc_vars = function(self, info_queue, card2)
-                if oldlocvars then
-                    oldlocvars(self, info_queue, card2)
-                end
-                local loc_vars, main_start, main_end = SEALS.get_loc_vars(SEALS.copy_card_but_not(card, v))
-                return {vars = loc_vars, main_start = main_start, main_end = main_end}
-            end
-            info_queue[#info_queue+1] = other_center
+            info_queue[#info_queue+1] = center
             if not credit and not center.original_mod then
                 credit = true
             end
