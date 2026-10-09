@@ -390,7 +390,8 @@ if SEALS.request then
             pirated = G.soe_pirated,
             rarity = G.soe_ENTERED_REQUEST_RARITY,
             public = G.soe_ENTERED_REQUEST_PUBLIC,
-            username = G.soe_ENTERED_REQUEST_USERNAME
+            username = G.soe_ENTERED_REQUEST_USERNAME,
+            weekly = G.soe_weekly
         })
         SEALS.request('submit', 'POST', data, function(code, body)
             if code == 200 then
