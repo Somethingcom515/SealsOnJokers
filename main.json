@@ -12,7 +12,7 @@
 	"icon_path": "modicon.png",
 	"version": "4.1.2",
 	"dependencies": [
-		"Steamodded (>=26.829.0)",
+		"Steamodded (>=26.1002.0)",
 		"Lovely (>=0.10.0)", 
 		"Balatro (>=1.0.1o)"
 	],

@@ -8677,11 +8677,14 @@ function Game:update(dt)
                                         ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
                                     elseif response.results[k].status == 'rejected' then
                                         rejected[#rejected+1] = {reason = response.results[k].rejection_reason, return_consumable = response.results[k].return_consumable, pirated = response.results[k].pirated}
+                                        SEALS.config.joker_requests[k] = nil
                                     end
                                 elseif v.status == 'ready' and v.joker_file and response.results[k].joker_file and v.joker_file ~= response.results[k].joker_file then
                                     ready[k] = response.results[k].joker_file..'\njoker.soe_id = \''..k..'\'\njoker.soe_pirated = '..tostring(response.results[k].pirated)..'\njoker.soe_idea = \''..response.results[k].username..'\'\nreturn joker'
                                 end
-                                SEALS.config.joker_requests[k] = response.results[k]
+                                if response.results[k].status ~= 'rejected' then
+                                    SEALS.config.joker_requests[k] = response.results[k]
+                                end
                             end
                         end
                         SMODS.save_mod_config(SEALS)
