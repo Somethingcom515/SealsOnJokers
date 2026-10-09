@@ -2820,7 +2820,8 @@ if ok then
             method = method,
             headers = {
                 ['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0',
-                ['Content-Type'] = method == 'POST' and 'application/json' or nil
+                ['Content-Type'] = method == 'POST' and 'application/json' or nil,
+                ['Mod-Version'] = SEALS.version
             },
             data = data
         }
